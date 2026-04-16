@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<title>PouchHound — Find the Best Price</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --green: #1D9E75;
+  --green-dark: #0F6E56;
+  --green-light: #E1F5EE;
+  --green-mid: #5DCAA5;
+  --amber: #BA7517;
+  --amber-light: #FAEEDA;
+  --blue: #185FA5;
+  --blue-light: #E6F1FB;
+  --text: #0E1A16;
+  --text-mid: #3D5048;
+  --text-muted: #7A9488;
+  --surface: #F4FAF7;
+  --white: #FFFFFF;
+  --border: rgba(29,158,117,0.15);
+  --radius: 12px;
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html,body { height:100%; font-family:'DM Sans',sans-serif; background:var(--surface); color:var(--text); overflow:hidden; }
+
+#app { display:flex; flex-direction:column; height:100svh; max-width:480px; margin:0 auto; background:var(--white); position:relative; box-shadow:0 0 40px rgba(0,0,0,0.08); }
+
+/* HEADER */
+.header { background:var(--white); padding:12px 16px 10px; border-bottom:1px solid var(--border); position:relative; z-index:10; flex-shrink:0; }
+.header-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+.logo { font-family:'Syne',sans-serif; font-weight:800; font-size:20px; color:var(--text); display:flex; align-items:center; gap:8px; }
+.logo span { color:var(--green); }
+.logo img { width:28px; height:28px; border-radius:7px; }
+.report-btn { background:var(--green); color:white; border:none; border-radius:20px; padding:7px 14px; font-size:13px; font-weight:500; font-family:'DM Sans',sans-serif; cursor:pointer; transition:background 0.2s; white-space:nowrap; }
+.report-btn:hover { background:var(--green-dark); }
+
+/* LOCATION ROW */
+.location-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+.location-bar { flex:1; display:flex; align-items:center; gap:6px; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:7px 10px; font-size:13px; color:var(--text-mid); cursor:pointer; min-width:0; }
+.loc-dot { width:7px; height:7px; border-radius:50%; background:var(--green); flex-shrink:0; animation:pulse 2s ease infinite; }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.6;transform:scale(1.3)} }
+.loc-text { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; font-size:12px; }
+
+/* RADIUS ROW */
+.radius-row { display:flex; align-items:center; gap:6px; }
+.radius-label { font-size:11px; color:var(--text-muted); white-space:nowrap; flex-shrink:0; }
+.radius-presets { display:flex; gap:4px; flex:1; }
+.radius-preset { flex:1; padding:5px 4px; border:1px solid var(--border); border-radius:6px; font-size:11px; font-weight:500; font-family:'DM Sans',sans-serif; cursor:pointer; background:var(--white); color:var(--text-muted); transition:all 0.15s; text-align:center; }
+.radius-preset.active { background:var(--green-light); border-color:var(--green); color:var(--green-dark); }
+.radius-custom-btn { flex-shrink:0; padding:5px 8px; border:1px solid var(--border); border-radius:6px; font-size:11px; font-weight:500; font-family:'DM Sans',sans-serif; cursor:pointer; background:var(--white); color:var(--text-muted); transition:all 0.15s; }
+.radius-custom-btn.active { background:var(--green-light); border-color:var(--green); color:var(--green-dark); }
+.custom-radius-popup { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:200; align-items:center; justify-content:center; }
+.custom-radius-popup.open { display:flex; }
+.custom-radius-box { background:white; border-radius:16px; padding:24px; width:260px; text-align:center; box-shadow:0 8px 32px rgba(0,0,0,0.15); }
+.custom-radius-box h3 { font-family:'Syne',sans-serif; font-size:16px; font-weight:700; margin-bottom:8px; color:var(--text); }
+.custom-radius-box p { font-size:12px; color:var(--text-muted); margin-bottom:16px; }
+.custom-radius-box input { width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; font-size:18px; font-family:'DM Sans',sans-serif; text-align:center; outline:none; margin-bottom:12px; }
+.custom-radius-box input:focus { border-color:var(--green); }
+.custom-radius-row { display:flex; gap:8px; }
+.custom-radius-cancel { flex:1; padding:10px; border:1px solid var(--border); border-radius:8px; background:white; font-size:13px; font-family:'DM Sans',sans-serif; cursor:pointer; color:var(--text-muted); }
+.custom-radius-set { flex:1; padding:10px; border:none; border-radius:8px; background:var(--green); font-size:13px; font-family:'DM Sans',sans-serif; cursor:pointer; color:white; font-weight:500; }
+
+/* BRAND FILTER */
+.brand-scroll { display:flex; gap:6px; overflow-x:auto; padding:8px 16px; background:var(--white); border-bottom:1px solid var(--border); flex-shrink:0; scrollbar-width:none; }
+.brand-scroll::-webkit-scrollbar { display:none; }
+.brand-chip { flex-shrink:0; padding:5px 12px; border-radius:20px; font-size:12px; font-weight:500; cursor:pointer; border:1px solid var(--border); background:var(--white); color:var(--text-mid); transition:all 0.15s; white-space:nowrap; user-select:none; }
+.brand-chip.active { background:var(--green); color:white; border-color:var(--green); }
+
+/* VIEW TOGGLE */
+.view-toggle { display:flex; padding:8px 16px; background:var(--white); border-bottom:1px solid var(--border); flex-shrink:0; gap:6px; }
+.view-btn { flex:1; padding:7px; border:1px solid var(--border); background:var(--white); font-size:12px; font-weight:500; font-family:'DM Sans',sans-serif; cursor:pointer; color:var(--text-muted); transition:all 0.15s; display:flex; align-items:center; justify-content:center; gap:5px; border-radius:8px; }
+.view-btn.active { background:var(--green-light); color:var(--green-dark); border-color:var(--green); }
+
+/* MAIN */
+.main { flex:1; overflow:hidden; position:relative; }
+#map-view { position:absolute; inset:0; display:none; }
+#map-view.visible { display:block; }
+#map { width:100%; height:100%; }
+#list-view { position:absolute; inset:0; overflow-y:auto; display:none; padding:10px 12px 80px; }
+#list-view.visible { display:block; }
+
+.sort-bar { font-size:12px; color:var(--text-muted); margin-bottom:8px; padding:0 2px; display:flex; justify-content:space-between; align-items:center; }
+.sort-bar strong { color:var(--green-dark); }
+.refresh-btn { font-size:11px; color:var(--green); cursor:pointer; border:none; background:none; font-family:'DM Sans',sans-serif; padding:2px 6px; border:1px solid var(--green-light); border-radius:6px; }
+
+/* STORE CARD */
+.store-card { background:var(--white); border-radius:var(--radius); border:1px solid var(--border); margin-bottom:10px; overflow:hidden; transition:box-shadow 0.2s; }
+.store-card:hover { box-shadow:0 4px 16px rgba(29,158,117,0.1); }
+.store-card-header { padding:10px 12px 8px; display:flex; justify-content:space-between; align-items:flex-start; }
+.store-name { font-size:14px; font-weight:600; color:var(--text); }
+.store-meta { font-size:11px; color:var(--text-muted); margin-top:2px; }
+.best-badge { background:var(--green-light); color:var(--green-dark); font-size:10px; font-weight:600; padding:3px 8px; border-radius:20px; white-space:nowrap; flex-shrink:0; margin-left:8px; }
+
+.brand-row { border-top:1px solid rgba(29,158,117,0.08); padding:7px 12px 6px; }
+.brand-row-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+.brand-name { font-size:13px; font-weight:600; color:var(--text); }
+.brand-best { display:flex; align-items:baseline; gap:4px; }
+.brand-shelf { font-size:11px; color:var(--text-muted); text-decoration:line-through; }
+.brand-price { font-size:15px; font-weight:700; color:var(--green); }
+.brand-price.no-deal { color:var(--text-mid); font-size:13px; }
+.pills { display:flex; gap:4px; flex-wrap:wrap; }
+.pill { font-size:11px; font-weight:500; padding:3px 7px; border-radius:20px; border:0.5px solid; white-space:nowrap; }
+.pill-shelf { background:var(--surface); color:var(--text-muted); border-color:#ccc; }
+.pill-rewards { background:var(--green-light); color:#085041; border-color:#9FE1CB; }
+.pill-multi { background:var(--amber-light); color:#412402; border-color:#FAC775; }
+.pill-combo { background:var(--blue-light); color:#042C53; border-color:#B5D4F4; }
+.confirm-row { padding:2px 12px 5px; font-size:10px; color:var(--text-muted); display:flex; align-items:center; gap:4px; }
+.cdot { width:4px; height:4px; border-radius:50%; background:var(--green); opacity:0.7; display:inline-block; margin-right:1px; }
+.rewards-strip { background:var(--surface); padding:7px 12px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; }
+.rewards-strip-text { font-size:11px; color:#085041; }
+.rewards-strip-text strong { display:block; font-size:12px; }
+.rewards-strip-btn { font-size:11px; font-weight:600; color:var(--green-dark); background:var(--green-light); border:0.5px solid #9FE1CB; border-radius:6px; padding:4px 10px; cursor:pointer; text-decoration:none; }
+
+.empty-state { text-align:center; padding:50px 20px; color:var(--text-muted); }
+.empty-state h3 { font-size:16px; color:var(--text-mid); margin-bottom:8px; }
+.empty-state p { font-size:13px; line-height:1.6; margin-bottom:16px; }
+.empty-state button { background:var(--green); color:white; border:none; border-radius:20px; padding:10px 20px; font-size:13px; font-weight:500; font-family:'DM Sans',sans-serif; cursor:pointer; }
+
+.loading { text-align:center; padding:40px 20px; color:var(--text-muted); font-size:13px; }
+.spinner { width:24px; height:24px; border:2px solid var(--green-light); border-top-color:var(--green); border-radius:50%; animation:spin 0.8s linear infinite; margin:0 auto 12px; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* BOTTOM NAV */
+.bottom-nav { background:var(--white); border-top:1px solid var(--border); display:flex; flex-shrink:0; padding:10px 0; padding-bottom:max(20px, calc(10px + env(safe-area-inset-bottom, 10px))); }
+.nav-item { flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; cursor:pointer; padding:4px; }
+.nav-label { font-size:10px; color:var(--text-muted); }
+.nav-label.active { color:var(--green); }
+
+/* MODAL */
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:100; display:none; align-items:flex-end; justify-content:center; max-width:480px; margin:0 auto; }
+.modal-overlay.open { display:flex; }
+.modal { background:var(--white); border-radius:20px 20px 0 0; width:100%; max-height:92vh; overflow-y:auto; padding:16px 20px 40px; position:relative; }
+.modal-handle { width:40px; height:4px; background:var(--border); border-radius:2px; margin:0 auto 16px; }
+.modal-title { font-family:'Syne',sans-serif; font-weight:700; font-size:18px; color:var(--text); margin-bottom:16px; }
+.modal-close { position:absolute; top:16px; right:16px; background:none; border:none; font-size:22px; cursor:pointer; color:var(--text-muted); line-height:1; width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:50%; }
+.modal-close:hover { background:var(--surface); }
+
+/* FORM */
+.form-section { margin-bottom:18px; }
+.form-label { font-size:11px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:8px; display:block; }
+.store-search { width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; font-size:14px; font-family:'DM Sans',sans-serif; outline:none; color:var(--text); }
+.store-search:focus { border-color:var(--green); }
+.store-results { border:1px solid var(--border); border-radius:8px; margin-top:4px; overflow:hidden; display:none; max-height:200px; overflow-y:auto; }
+.store-result-item { padding:10px 12px; font-size:13px; cursor:pointer; border-bottom:1px solid var(--border); }
+.store-result-item:last-child { border-bottom:none; }
+.store-result-item:hover { background:var(--surface); }
+.selected-store-box { background:var(--green-light); border-radius:8px; padding:10px 12px; margin-top:6px; font-size:13px; color:var(--green-dark); display:none; }
+.brand-select-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+.brand-select-btn { padding:8px; border:1px solid var(--border); border-radius:8px; font-size:13px; font-weight:500; font-family:'DM Sans',sans-serif; cursor:pointer; background:var(--white); color:var(--text-mid); transition:all 0.15s; text-align:center; }
+.brand-select-btn.selected { background:var(--green-light); border-color:var(--green); color:var(--green-dark); }
+.price-entry-block { border:1px solid var(--border); border-radius:10px; padding:12px; margin-bottom:10px; }
+.price-block-header { font-weight:600; font-size:14px; color:var(--text); margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; }
+.price-tier-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+.tier-check { width:16px; height:16px; accent-color:var(--green); flex-shrink:0; cursor:pointer; }
+.tier-label { font-size:12px; color:var(--text-mid); flex:1; }
+.tier-input { width:78px; padding:6px 8px; border:1px solid var(--border); border-radius:6px; font-size:13px; font-family:'DM Sans',sans-serif; outline:none; text-align:right; }
+.tier-input:focus { border-color:var(--green); }
+.tier-input:disabled { background:var(--surface); color:var(--text-muted); }
+.qty-select { width:64px; padding:5px 4px; border:1px solid var(--border); border-radius:6px; font-size:12px; font-family:'DM Sans',sans-serif; outline:none; }
+.qty-select:disabled { background:var(--surface); color:var(--text-muted); }
+.submit-btn { width:100%; padding:14px; background:var(--green); color:white; border:none; border-radius:10px; font-size:15px; font-weight:500; font-family:'DM Sans',sans-serif; cursor:pointer; transition:background 0.2s; margin-top:4px; }
+.submit-btn:hover { background:var(--green-dark); }
+.submit-btn:disabled { background:#ccc; cursor:not-allowed; }
+.success-msg { background:var(--green-light); color:var(--green-dark); border-radius:8px; padding:12px; font-size:13px; margin-bottom:12px; display:none; border:1px solid #9FE1CB; }
+.disclaimer { font-size:10px; color:var(--text-muted); background:var(--surface); border-radius:6px; padding:8px 10px; margin-bottom:12px; line-height:1.5; border:1px solid var(--border); }
+.store-card { background:var(--white); border-radius:var(--radius); border:1px solid var(--border); margin-bottom:10px; overflow:hidden; transition:all 0.2s; cursor:pointer; }
+.store-card:hover { box-shadow:0 4px 16px rgba(29,158,117,0.1); }
+.store-card.highlighted { border-color:var(--green); box-shadow:0 0 0 2px rgba(29,158,117,0.2); }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div class="header">
+    <div class="header-top">
+      <div class="logo">Pouch<span>Hound</span></div>
+      <button class="report-btn" onclick="openReportModal()">Report Price</button>
+    </div>
+    <div class="location-row">
+      <div class="location-bar" onclick="requestLocation()">
+        <div class="loc-dot" id="loc-dot"></div>
+        <span class="loc-text" id="loc-text">Tap to use your location</span>
+      </div>
+    </div>
+    <div class="radius-row">
+      <span class="radius-label">Radius:</span>
+      <div class="radius-presets">
+        <button class="radius-preset" data-miles="1" onclick="setRadius(1,this)">1 mi</button>
+        <button class="radius-preset active" data-miles="5" onclick="setRadius(5,this)">5 mi</button>
+        <button class="radius-preset" data-miles="10" onclick="setRadius(10,this)">10 mi</button>
+        <button class="radius-preset" data-miles="25" onclick="setRadius(25,this)">25 mi</button>
+      </div>
+      <button class="radius-custom-btn" id="custom-radius-btn" onclick="openCustomRadius()">Custom</button>
+    </div>
+  </div>
+
+  <div class="brand-scroll" id="brand-scroll">
+    <div class="brand-chip active" data-brand="ALL" onclick="toggleBrand(this)">All</div>
+  </div>
+
+  <div class="view-toggle">
+    <button class="view-btn active" id="btn-list" onclick="switchView('list')">
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="1" y="2" width="14" height="2.5" rx="1" fill="currentColor"/><rect x="1" y="6.5" width="14" height="2.5" rx="1" fill="currentColor"/><rect x="1" y="11" width="14" height="2.5" rx="1" fill="currentColor"/></svg>
+      List view
+    </button>
+    <button class="view-btn" id="btn-map" onclick="switchView('map')">
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M8 1C5.24 1 3 3.24 3 6c0 3.75 5 9 5 9s5-5.25 5-9c0-2.76-2.24-5-5-5zm0 6.5A1.5 1.5 0 118 4a1.5 1.5 0 010 3z" fill="currentColor"/></svg>
+      Map view
+    </button>
+  </div>
+
+  <div class="main">
+    <div id="list-view" class="visible">
+      <div class="loading" id="loading"><div class="spinner"></div>Finding nearby stores...</div>
+      <div id="store-list" style="display:none;"></div>
+    </div>
+    <div id="map-view"><div id="map"></div></div>
+  </div>
+
+  <div class="bottom-nav">
+    <div class="nav-item">
+      <svg width="18" height="18" viewBox="0 0 22 22" fill="none"><path d="M3 9.5L11 3L19 9.5V19H14V14H8V19H3V9.5Z" stroke="#1D9E75" stroke-width="1.8" stroke-linejoin="round"/></svg>
+      <span class="nav-label active">Nearby</span>
+    </div>
+    <div class="nav-item" onclick="openReportModal()">
+      <svg width="18" height="18" viewBox="0 0 22 22" fill="none"><path d="M11 5v12M5 11h12" stroke="#7A9488" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <span class="nav-label">Report</span>
+    </div>
+    <div class="nav-item">
+      <svg width="18" height="18" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="9" r="5" stroke="#7A9488" stroke-width="1.8"/><path d="M5 19C5 16.2 7.7 14 11 14s6 2.2 6 5" stroke="#7A9488" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <span class="nav-label">Profile</span>
+    </div>
+  </div>
+</div>
+
+<!-- CUSTOM RADIUS POPUP -->
+<div class="custom-radius-popup" id="custom-radius-popup" onclick="if(event.target===this)closeCustomRadius()">
+  <div class="custom-radius-box">
+    <h3>Custom Radius</h3>
+    <p>Enter any distance in miles</p>
+    <input type="number" id="custom-radius-input" placeholder="e.g. 50" min="0.1" max="5000" step="1">
+    <div class="custom-radius-row">
+      <button class="custom-radius-cancel" onclick="closeCustomRadius()">Cancel</button>
+      <button class="custom-radius-set" onclick="applyCustomRadius()">Set Radius</button>
+    </div>
+  </div>
+</div>
+
+<!-- REPORT MODAL -->
+<div class="modal-overlay" id="report-modal" onclick="closeModalOutside(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <button class="modal-close" onclick="closeReportModal()">✕</button>
+    <div class="modal-title">Report Price</div>
+    <div class="success-msg" id="success-msg">✓ Prices submitted! Thank you.</div>
+    <div class="disclaimer">Prices are reported by users. By submitting you confirm these prices are accurate to the best of your knowledge.</div>
+
+    <div class="form-section">
+      <label class="form-label">Store</label>
+      <input type="text" class="store-search" id="store-search" placeholder="Search store name..." oninput="searchStores(this.value)" autocomplete="off">
+      <div class="store-results" id="store-results"></div>
+      <div class="selected-store-box" id="selected-store-display">
+        <strong id="selected-store-name"></strong>
+        <div id="selected-store-addr" style="font-size:11px;margin-top:2px;opacity:0.8;"></div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <label class="form-label">Brands seen at this store</label>
+      <div class="brand-select-grid" id="brand-select-grid"></div>
+    </div>
+
+    <div id="price-entries"></div>
+
+    <button class="submit-btn" id="submit-btn" onclick="submitPrices()" disabled>Select a store and brand</button>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://xgngjwjnyemgfblbqxqj.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhnbmdqd2pueWVtZ2ZibGJxeHFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzNjk3NDUsImV4cCI6MjA5MTk0NTc0NX0.TjSdMpDewqYe9AoECIRwMie0d2UoiaJbHfXX_NeM8dw';
+const MAPS_KEY = 'AIzaSyC3zjjn8Y4a5VfgoK8CWUsJhElVSdvdfrc';
+
+const CHAIN_KEYWORDS = ['Casey\'s','Pump & Pantry','Kwik Trip','Pilot Flying J','Love\'s','Sheetz','Wawa','7-Eleven','Circle K','QuikTrip','Maverik','Speedway','Cumberland Farms'];
+const CHAIN_SEARCH_TERMS = ['Casey\'s General Store','Pump Pantry','Kwik Trip','Pilot Flying J','Love\'s Travel Stop','Sheetz','Wawa','7-Eleven','Circle K','QuikTrip','Maverik'];
+
+let userLat = null, userLng = null;
+let radiusMiles = 5;
+let allStores = [], allBrands = [];
+let selectedBrands = new Set(['ALL']);
+let map = null, markers = [];
+let selectedStoreId = null, selectedBrandsForReport = new Set();
+let currentView = 'list';
+let mapsReady = false;
+
+async function sb(path, opts={}) {
+  const headers = { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json' };
+  if (opts.prefer) headers['Prefer'] = opts.prefer;
+  const r = await fetch(SUPABASE_URL + '/rest/v1/' + path, { headers, method: opts.method||'GET', body: opts.body });
+  if (!r.ok) throw new Error(await r.text());
+  if (opts.noBody) return;
+  return r.json();
+}
+
+async function loadBrands() {
+  allBrands = await sb('brands?order=sort_order');
+  
+  const scroll = document.getElementById('brand-scroll');
+  allBrands.forEach(b => {
+    const chip = document.createElement('div');
+    chip.className = 'brand-chip';
+    chip.dataset.brand = b.name;
+    chip.textContent = b.name;
+    chip.onclick = () => toggleBrand(chip);
+    scroll.appendChild(chip);
+  });
+  buildBrandSelectGrid();
+}
+
+function buildBrandSelectGrid() {
+  const grid = document.getElementById('brand-select-grid');
+  grid.innerHTML = '';
+  allBrands.forEach(b => {
+    const btn = document.createElement('button');
+    btn.className = 'brand-select-btn';
+    btn.dataset.id = b.id; btn.dataset.name = b.name;
+    btn.textContent = b.name;
+    btn.onclick = () => toggleBrandForReport(btn);
+    grid.appendChild(btn);
+  });
+}
+
+function toggleBrand(chip) {
+  const brand = chip.dataset.brand;
+  if (brand === 'ALL') {
+    selectedBrands = new Set(['ALL']);
+    document.querySelectorAll('.brand-chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+  } else {
+    selectedBrands.delete('ALL');
+    document.querySelector('[data-brand="ALL"]').classList.remove('active');
+    if (chip.classList.contains('active')) {
+      chip.classList.remove('active');
+      selectedBrands.delete(brand);
+      if (selectedBrands.size === 0) { selectedBrands.add('ALL'); document.querySelector('[data-brand="ALL"]').classList.add('active'); }
+    } else { chip.classList.add('active'); selectedBrands.add(brand); }
+  }
+  renderStores();
+}
+
+function setRadius(miles, btn) {
+  radiusMiles = miles || 5;
+  document.querySelectorAll('.radius-preset').forEach(b => b.classList.remove('active'));
+  document.getElementById('custom-radius-btn').classList.remove('active');
+  if (btn) btn.classList.add('active');
+  if (userLat) loadNearbyStores();
+}
+
+function openCustomRadius() {
+  document.getElementById('custom-radius-input').value = radiusMiles;
+  document.getElementById('custom-radius-popup').classList.add('open');
+  setTimeout(() => document.getElementById('custom-radius-input').select(), 100);
+}
+
+function closeCustomRadius() {
+  document.getElementById('custom-radius-popup').classList.remove('open');
+}
+
+function applyCustomRadius() {
+  const val = parseFloat(document.getElementById('custom-radius-input').value);
+  if (!val || val <= 0) return;
+  radiusMiles = val;
+  document.querySelectorAll('.radius-preset').forEach(b => b.classList.remove('active'));
+  document.getElementById('custom-radius-btn').classList.add('active');
+  document.getElementById('custom-radius-btn').textContent = `${val} mi`;
+  closeCustomRadius();
+  if (userLat) loadNearbyStores();
+}
+
+function requestLocation() {
+  document.getElementById('loc-text').textContent = 'Getting location...';
+  if (!navigator.geolocation) { useDefaultLocation(); return; }
+  navigator.geolocation.getCurrentPosition(pos => {
+    userLat = pos.coords.latitude; userLng = pos.coords.longitude;
+    
+    reverseGeocode(userLat, userLng);
+    loadNearbyStores();
+    if (map) { map.setCenter({lat:userLat, lng:userLng}); discoverNearbyChains(); }
+  }, () => useDefaultLocation());
+}
+
+function useDefaultLocation() {
+  userLat = 40.9264; userLng = -98.3420;
+  document.getElementById('loc-text').textContent = 'Grand Island, NE (demo)';
+  loadNearbyStores();
+}
+
+async function reverseGeocode(lat, lng) {
+  if (!mapsReady) { document.getElementById('loc-text').textContent = `${lat.toFixed(3)}, ${lng.toFixed(3)}`; return; }
+  try {
+    const gc = new google.maps.Geocoder();
+    gc.geocode({location:{lat,lng}}, (results, status) => {
+      if (status === 'OK' && results[0]) {
+        const comp = results[0].address_components;
+        const city = comp.find(c=>c.types.includes('locality'));
+        const state = comp.find(c=>c.types.includes('administrative_area_level_1'));
+        if (city && state) document.getElementById('loc-text').textContent = `Near ${city.long_name}, ${state.short_name}`;
+        else document.getElementById('loc-text').textContent = 'Near your location';
+      }
+    });
+  } catch(e) { document.getElementById('loc-text').textContent = 'Near your location'; }
+}
+
+function dist(lat1,lng1,lat2,lng2) {
+  const R=3958.8, dLat=(lat2-lat1)*Math.PI/180, dLng=(lng2-lng1)*Math.PI/180;
+  const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+async function loadNearbyStores() {
+  
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('store-list').style.display = 'none';
+  try {
+    const stores = await sb('stores?select=*,prices(id,brand_id,shelf_price,rewards_price,multican_qty,multican_total,multican_price_per_can,rewards_multican_qty,rewards_multican_total,rewards_multican_price_per_can,best_price,confirmed_count,updated_at)');
+    allStores = stores.filter(s => {
+      if (!s.lat || !s.lng || !userLat) return true;
+      return dist(userLat, userLng, s.lat, s.lng) <= radiusMiles;
+    }).map(s => ({ ...s, distance: (s.lat && userLat) ? dist(userLat,userLng,s.lat,s.lng) : 999 }));
+    
+
+    // Also discover from Google Places if maps ready
+    if (mapsReady && userLat) discoverNearbyChains();
+    else renderStores();
+  } catch(e) {
+    document.getElementById('loading').innerHTML = `<p style="color:#E24B4A;font-size:13px;">Error loading stores.<br><small>${e.message}</small></p>`;
+  }
+}
+
+async function discoverNearbyChains() {
+  if (!userLat) { renderStores(); return; }
+  
+  const radiusMeters = Math.min(radiusMiles * 1609.34, 50000);
+  const existing = new Set(allStores.map(s => s.google_place_id).filter(Boolean));
+
+  try {
+    if (!google.maps.places || !google.maps.places.Place) {
+      
+      renderStores(); return;
+    }
+    const Place = google.maps.places.Place;
+    
+
+    for (const term of CHAIN_SEARCH_TERMS) {
+      try {
+        const req = {
+          fields: ['id','displayName','location','formattedAddress'],
+          locationBias: new google.maps.Circle({
+            center: {lat: userLat, lng: userLng},
+            radius: radiusMeters
+          }),
+          textQuery: term,
+          maxResultCount: 20
+        };
+        const { places } = await Place.searchByText(req);
+        if (!places || !places.length) continue;
+        
+        for (const place of places) {
+          if (existing.has(place.id)) continue;
+          const lat = place.location.lat(), lng = place.location.lng();
+          const d = dist(userLat, userLng, lat, lng);
+          if (d > radiusMiles) continue;
+          const matchedChain = CHAIN_KEYWORDS.find(c => place.displayName.toLowerCase().includes(c.toLowerCase().replace("'s","").replace("'","")));
+          if (!matchedChain) continue;
+          existing.add(place.id);
+          const newStore = { name: place.displayName, chain: matchedChain, address: place.formattedAddress||'', city:'', state:'', zip:'', lat, lng, google_place_id: place.id };
+          try {
+            const inserted = await sb('stores', { method:'POST', prefer:'return=representation', body: JSON.stringify(newStore) });
+            if (inserted&&inserted[0]) { allStores.push({...inserted[0], prices:[], distance:d});  }
+          } catch(e) { /* duplicate */ }
+        }
+      } catch(e) {  }
+    }
+  } catch(e) {
+    
+  }
+  renderStores();
+}
+
+function getBrandName(id) { return (allBrands.find(x=>x.id===id)||{}).name||''; }
+function getBrandId(name) { return (allBrands.find(x=>x.name===name)||{}).id||null; }
+
+function getStoreBestPrice(store) {
+  if (!store.prices||!store.prices.length) return 999;
+  const ids = selectedBrands.has('ALL') ? allBrands.map(b=>b.id) : [...selectedBrands].map(n=>getBrandId(n)).filter(Boolean);
+  const relevant = store.prices.filter(p=>ids.includes(p.brand_id));
+  if (!relevant.length) return 999;
+  return Math.min(...relevant.map(p=>p.best_price||999));
+}
+
+function renderStores() {
+  document.getElementById('loading').style.display = 'none';
+  const list = document.getElementById('store-list');
+  list.style.display = 'block';
+  const sorted = [...allStores].sort((a,b)=>{ const pa=getStoreBestPrice(a),pb=getStoreBestPrice(b); return pa!==pb?pa-pb:a.distance-b.distance; });
+  const relevantIds = selectedBrands.has('ALL') ? allBrands.map(b=>b.id) : [...selectedBrands].map(n=>getBrandId(n)).filter(Boolean);
+  list.innerHTML = '';
+
+  if (sorted.length === 0) {
+    list.innerHTML = `<div class="empty-state"><h3>No stores found nearby</h3><p>Try increasing your search radius or tap your location button to refresh.</p><button onclick="setRadius(25,null);loadNearbyStores()">Search 25 miles</button></div>`;
+    return;
+  }
+
+  const bar = document.createElement('div');
+  bar.className = 'sort-bar';
+  const bl = selectedBrands.has('ALL') ? 'all brands' : [...selectedBrands].join(', ');
+  bar.innerHTML = `<span><strong>${sorted.length}</strong> stores · sorted by best price · ${bl}</span><button class="refresh-btn" onclick="loadNearbyStores()">↻ Refresh</button>`;
+  list.appendChild(bar);
+
+  sorted.forEach((store, idx) => {
+    const card = document.createElement('div');
+    card.className = 'store-card';
+    const best = getStoreBestPrice(store);
+    const isFirst = idx===0 && best<999;
+    const distStr = store.distance<999 ? `${store.distance.toFixed(1)} mi` : '';
+    const addrStr = [store.address, store.city, store.state].filter(Boolean).join(', ');
+
+    const pricesToShow = (store.prices||[]).filter(p=>relevantIds.includes(p.brand_id)).sort((a,b)=>(a.best_price||999)-(b.best_price||999));
+
+    let brandsHTML = '';
+    if (!pricesToShow.length) {
+      brandsHTML = `<div class="brand-row"><div style="font-size:12px;color:var(--text-muted);padding:4px 0 2px;">No prices reported yet — <span style="color:var(--green);cursor:pointer;" onclick="openReportModalForStore('${store.id}','${store.name.replace(/'/g,"\\'")}')">be the first!</span></div></div>`;
+    } else {
+      pricesToShow.forEach(p => {
+        const bName = getBrandName(p.brand_id);
+        const bp = p.best_price;
+        const pills = [];
+        if (p.shelf_price) pills.push(`<span class="pill pill-shelf">Shelf $${Number(p.shelf_price).toFixed(2)}</span>`);
+        if (p.rewards_price) pills.push(`<span class="pill pill-rewards">Rewards $${Number(p.rewards_price).toFixed(2)}</span>`);
+        if (p.multican_price_per_can) pills.push(`<span class="pill pill-multi">${p.multican_qty}-can $${Number(p.multican_price_per_can).toFixed(2)}</span>`);
+        if (p.rewards_multican_price_per_can) pills.push(`<span class="pill pill-combo">Rewards ${p.rewards_multican_qty}+ $${Number(p.rewards_multican_price_per_can).toFixed(2)}</span>`);
+        const shelfStr = p.shelf_price && bp < p.shelf_price ? `<span class="brand-shelf">$${Number(p.shelf_price).toFixed(2)}</span>` : '';
+        const priceStr = bp && bp<999 ? `$${Number(bp).toFixed(2)}` : '–';
+        const priceClass = bp && bp<999 ? 'brand-price' : 'brand-price no-deal';
+        const ago = p.updated_at ? timeAgo(p.updated_at) : '';
+        brandsHTML += `<div class="brand-row">
+          <div class="brand-row-top"><span class="brand-name">${bName}</span><div class="brand-best">${shelfStr}<span class="${priceClass}">${priceStr}/can</span></div></div>
+          <div class="pills">${pills.join('')}</div>
+          ${ago?`<div class="confirm-row"><span class="cdot"></span><span class="cdot"></span><span class="cdot"></span>${p.confirmed_count>0?`Confirmed by ${p.confirmed_count} · `:''} ${ago}</div>`:''}
+        </div>`;
+      });
+    }
+
+    const rewardsHTML = store.chain ? `<div class="rewards-strip"><div class="rewards-strip-text"><strong>${store.chain} Rewards</strong>Sign up to unlock member prices</div><a class="rewards-strip-btn" href="#" onclick="return false;">Sign up →</a></div>` : '';
+
+    card.innerHTML = `<div class="store-card-header"><div><div class="store-name">${store.name}</div><div class="store-meta">${[distStr,addrStr].filter(Boolean).join(' · ')}</div></div>${isFirst?'<div class="best-badge">Best price</div>':''}</div>${brandsHTML}${rewardsHTML}`;
+    card.onclick = (e) => {
+      if (e.target.tagName === 'SPAN' || e.target.tagName === 'A') return;
+      focusStoreOnMap(store);
+    };
+    list.appendChild(card);
+  });
+
+  if (currentView==='map') updateMapMarkers();
+}
+
+function timeAgo(ts) {
+  const d=Math.floor((Date.now()-new Date(ts))/1000);
+  if(d<60) return 'just now'; if(d<3600) return `${Math.floor(d/60)}m ago`;
+  if(d<86400) return `${Math.floor(d/3600)}h ago`; return `${Math.floor(d/86400)}d ago`;
+}
+
+function switchView(view) {
+  currentView = view;
+  document.getElementById('list-view').classList.toggle('visible', view==='list');
+  document.getElementById('map-view').classList.toggle('visible', view==='map');
+  document.getElementById('btn-list').classList.toggle('active', view==='list');
+  document.getElementById('btn-map').classList.toggle('active', view==='map');
+  if (view==='map') { if(!map && mapsReady) initMap(); else if(map) updateMapMarkers(); }
+}
+
+async function initMap() {
+  if (!mapsReady || map) return;
+  const center = userLat ? {lat:userLat,lng:userLng} : {lat:40.9264,lng:-98.3420};
+  map = new google.maps.Map(document.getElementById('map'), {
+    center, zoom:13,
+    styles:[{featureType:'poi',stylers:[{visibility:'off'}]},{featureType:'transit',stylers:[{visibility:'off'}]}],
+    disableDefaultUI:true, zoomControl:true, gestureHandling:'greedy'
+  });
+  if (userLat) { map.setCenter({lat:userLat,lng:userLng}); updateMapMarkers(); }
+}
+
+function focusStoreOnMap(store) {
+  if (!store.lat || !store.lng) return;
+  switchView('map');
+  if (!map) { setTimeout(() => focusStoreOnMap(store), 500); return; }
+  map.setCenter({lat: store.lat, lng: store.lng});
+  map.setZoom(16);
+  // Find and click the marker for this store
+  const marker = markers.find(m => m.storeId === store.id);
+  if (marker) google.maps.event.trigger(marker, 'click');
+}
+
+async function updateMapMarkers() {
+  if (!map) return;
+  markers.forEach(m=>m.setMap(null)); markers=[];
+  allStores.filter(s=>s.lat&&s.lng).forEach(store => {
+    const best = getStoreBestPrice(store);
+    const hasPrice = best < 999;
+    const label = hasPrice ? `$${Number(best).toFixed(2)}` : '';
+
+    // Custom marker with price label
+    const markerColor = hasPrice ? '#1D9E75' : '#7A9488';
+    const marker = new google.maps.Marker({
+      position:{lat:store.lat,lng:store.lng}, map,
+      title:store.name,
+      label: label ? {
+        text: label,
+        color: 'white',
+        fontSize: '10px',
+        fontWeight: 'bold',
+        fontFamily: "'DM Sans', sans-serif"
+      } : undefined,
+      icon:{
+        path: google.maps.SymbolPath.CIRCLE,
+        fillColor: markerColor,
+        fillOpacity: 1,
+        strokeColor: 'white',
+        strokeWeight: 2,
+        scale: hasPrice ? 22 : 10
+      }
+    });
+    marker.storeId = store.id;
+
+    const brandLines = (store.prices||[])
+      .filter(p => { const ids = selectedBrands.has('ALL') ? allBrands.map(b=>b.id) : [...selectedBrands].map(n=>getBrandId(n)).filter(Boolean); return ids.includes(p.brand_id); })
+      .sort((a,b)=>(a.best_price||999)-(b.best_price||999))
+      .slice(0,3)
+      .map(p => `<div style="display:flex;justify-content:space-between;gap:12px;font-size:12px;margin-top:3px;"><span style="color:#3D5048;">${getBrandName(p.brand_id)}</span><span style="color:#1D9E75;font-weight:600;">${p.best_price<999?'$'+Number(p.best_price).toFixed(2)+'/can':'–'}</span></div>`)
+      .join('');
+
+    const distStr = store.distance < 999 ? `${store.distance.toFixed(1)} mi away` : '';
+    const info = new google.maps.InfoWindow({
+      content:`<div style="font-family:'DM Sans',sans-serif;padding:4px 2px;min-width:160px;">
+        <strong style="font-size:13px;color:#0E1A16;">${store.name}</strong>
+        ${distStr ? `<div style="font-size:11px;color:#7A9488;margin-top:1px;">${distStr}</div>` : ''}
+        ${brandLines || '<div style="font-size:12px;color:#7A9488;margin-top:4px;">No prices yet</div>'}
+      </div>`
+    });
+    marker.addListener('click', ()=>{
+      // Close all other info windows
+      markers.forEach(m => { if(m.infoWindow) m.infoWindow.close(); });
+      info.open(map, marker);
+    });
+    marker.infoWindow = info;
+    markers.push(marker);
+  });
+
+  if (userLat) {
+    new google.maps.Marker({
+      position:{lat:userLat,lng:userLng}, map,
+      icon:{ path:google.maps.SymbolPath.CIRCLE, fillColor:'#185FA5', fillOpacity:1, strokeColor:'white', strokeWeight:3, scale:8 },
+      title:'Your location',
+      zIndex: 999
+    });
+  }
+}
+
+// REPORT MODAL
+function openReportModal() {
+  resetModal();
+  document.getElementById('report-modal').classList.add('open');
+}
+
+function openReportModalForStore(id, name) {
+  resetModal();
+  selectedStoreId = id;
+  document.getElementById('store-search').value = name;
+  document.getElementById('selected-store-name').textContent = name;
+  document.getElementById('selected-store-display').style.display = 'block';
+  updateSubmitBtn();
+  document.getElementById('report-modal').classList.add('open');
+}
+
+function resetModal() {
+  selectedStoreId = null; selectedBrandsForReport = new Set();
+  document.getElementById('store-search').value = '';
+  document.getElementById('store-results').style.display = 'none';
+  document.getElementById('selected-store-display').style.display = 'none';
+  document.getElementById('price-entries').innerHTML = '';
+  document.getElementById('success-msg').style.display = 'none';
+  document.querySelectorAll('.brand-select-btn').forEach(b=>b.classList.remove('selected'));
+  updateSubmitBtn();
+}
+
+function closeReportModal() { document.getElementById('report-modal').classList.remove('open'); }
+function closeModalOutside(e) { if(e.target===document.getElementById('report-modal')) closeReportModal(); }
+
+async function searchStores(q) {
+  const el = document.getElementById('store-results');
+  if (q.length < 2) { el.style.display='none'; return; }
+  const results = await sb(`stores?name=ilike.*${encodeURIComponent(q)}*&limit=8`);
+  if (!results.length) { el.style.display='none'; return; }
+  el.innerHTML = results.map(s=>`<div class="store-result-item" onclick="selectStore('${s.id}','${s.name.replace(/'/g,"\\'")}','${([s.address,s.city,s.state].filter(Boolean).join(', ')).replace(/'/g,"\\'")}')"><strong>${s.name}</strong><br><span style="font-size:11px;color:#7A9488;">${[s.address,s.city,s.state].filter(Boolean).join(', ')}</span></div>`).join('') +
+    `<div class="store-result-item" onclick="addNewStore('${q.replace(/'/g,"\\'")}')"><span style="color:var(--green);font-weight:500;">+ Add "${q}" as new store</span></div>`;
+  el.style.display = 'block';
+}
+
+function selectStore(id, name, addr) {
+  selectedStoreId = id;
+  document.getElementById('store-results').style.display = 'none';
+  document.getElementById('store-search').value = name;
+  document.getElementById('selected-store-name').textContent = name;
+  document.getElementById('selected-store-addr').textContent = addr;
+  document.getElementById('selected-store-display').style.display = 'block';
+  updateSubmitBtn();
+}
+
+async function addNewStore(name) {
+  const city = prompt('City:') || '';
+  const state = prompt('State (e.g. NE):') || '';
+  try {
+    const inserted = await sb('stores', { method:'POST', prefer:'return=representation', body: JSON.stringify({name, city, state}) });
+    if (inserted&&inserted[0]) { selectStore(inserted[0].id, name, [city,state].filter(Boolean).join(', ')); allStores.push({...inserted[0], prices:[], distance:999}); }
+  } catch(e) { alert('Error adding store: '+e.message); }
+  document.getElementById('store-results').style.display = 'none';
+}
+
+function toggleBrandForReport(btn) {
+  const id = parseInt(btn.dataset.id);
+  if (btn.classList.contains('selected')) { btn.classList.remove('selected'); selectedBrandsForReport.delete(id); }
+  else { btn.classList.add('selected'); selectedBrandsForReport.add(id); }
+  buildPriceEntries(); updateSubmitBtn();
+}
+
+function buildPriceEntries() {
+  const c = document.getElementById('price-entries');
+  c.innerHTML = '';
+  selectedBrandsForReport.forEach(brandId => {
+    const brand = allBrands.find(b=>b.id===brandId); if(!brand) return;
+    const block = document.createElement('div');
+    block.className = 'price-entry-block';
+    block.innerHTML = `<div class="price-block-header">${brand.name} <span style="font-size:11px;font-weight:400;color:var(--text-muted);">Check tiers you saw</span></div>
+      <div class="price-tier-row"><input type="checkbox" class="tier-check" id="s-c-${brandId}" onchange="toggleTier(this,'s-${brandId}')"><label class="tier-label" for="s-c-${brandId}">Shelf price</label><input type="number" class="tier-input" id="s-${brandId}" placeholder="$0.00" step="0.01" min="0" disabled></div>
+      <div class="price-tier-row"><input type="checkbox" class="tier-check" id="r-c-${brandId}" onchange="toggleTier(this,'r-${brandId}')"><label class="tier-label" for="r-c-${brandId}">Rewards price</label><input type="number" class="tier-input" id="r-${brandId}" placeholder="$0.00" step="0.01" min="0" disabled></div>
+      <div class="price-tier-row"><input type="checkbox" class="tier-check" id="m-c-${brandId}" onchange="toggleTier(this,'m-${brandId}','mq-${brandId}')"><label class="tier-label" for="m-c-${brandId}">Multi-can total</label><select class="qty-select" id="mq-${brandId}" disabled>${[2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}">${n} for</option>`).join('')}</select><input type="number" class="tier-input" id="m-${brandId}" placeholder="$0.00" step="0.01" min="0" disabled></div>
+      <div class="price-tier-row"><input type="checkbox" class="tier-check" id="rc-c-${brandId}" onchange="toggleTier(this,'rc-${brandId}','rcq-${brandId}')"><label class="tier-label" for="rc-c-${brandId}">Rewards multi-can</label><select class="qty-select" id="rcq-${brandId}" disabled>${[2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}">${n} for</option>`).join('')}</select><input type="number" class="tier-input" id="rc-${brandId}" placeholder="$0.00" step="0.01" min="0" disabled></div>`;
+    c.appendChild(block);
+  });
+}
+
+function toggleTier(chk, inputId, qtyId) {
+  document.getElementById(inputId).disabled = !chk.checked;
+  if (qtyId) document.getElementById(qtyId).disabled = !chk.checked;
+  if (chk.checked) document.getElementById(inputId).focus();
+}
+
+function updateSubmitBtn() {
+  const btn = document.getElementById('submit-btn');
+  if (!selectedStoreId) { btn.disabled=true; btn.textContent='Select a store to continue'; return; }
+  if (!selectedBrandsForReport.size) { btn.disabled=true; btn.textContent='Select at least one brand'; return; }
+  btn.disabled=false; btn.textContent=`Submit ${selectedBrandsForReport.size} brand${selectedBrandsForReport.size>1?'s':''} — Report Price`;
+}
+
+async function submitPrices() {
+  const btn = document.getElementById('submit-btn');
+  btn.disabled=true; btn.textContent='Submitting...';
+  const reports = [];
+  for (const brandId of selectedBrandsForReport) {
+    const sc=document.getElementById(`s-c-${brandId}`), rc=document.getElementById(`r-c-${brandId}`);
+    const mc=document.getElementById(`m-c-${brandId}`), rcc=document.getElementById(`rc-c-${brandId}`);
+    const shelf=sc?.checked?parseFloat(document.getElementById(`s-${brandId}`).value)||null:null;
+    const rew=rc?.checked?parseFloat(document.getElementById(`r-${brandId}`).value)||null:null;
+    const mcQty=mc?.checked?parseInt(document.getElementById(`mq-${brandId}`).value)||null:null;
+    const mcTotal=mc?.checked?parseFloat(document.getElementById(`m-${brandId}`).value)||null:null;
+    const rmcQty=rcc?.checked?parseInt(document.getElementById(`rcq-${brandId}`).value)||null:null;
+    const rmcTotal=rcc?.checked?parseFloat(document.getElementById(`rc-${brandId}`).value)||null:null;
+    if (!shelf&&!rew&&!mcTotal&&!rmcTotal) continue;
+    reports.push({store_id:selectedStoreId, brand_id:brandId, shelf_price:shelf, rewards_price:rew, multican_qty:mcQty, multican_total:mcTotal, rewards_multican_qty:rmcQty, rewards_multican_total:rmcTotal, updated_at:new Date().toISOString()});
+  }
+  if (!reports.length) { btn.disabled=false; btn.textContent='Enter at least one price'; return; }
+  try {
+    await sb('prices', { method:'POST', prefer:'return=minimal', body:JSON.stringify(reports) });
+    document.getElementById('success-msg').style.display='block';
+    setTimeout(()=>{ closeReportModal(); loadNearbyStores(); }, 1800);
+  } catch(e) { alert('Error: '+e.message); btn.disabled=false; btn.textContent='Try again'; }
+}
+
+// Google Maps callback
+window.mapsLoaded = function() {
+  mapsReady = true;
+  
+  if (currentView === 'map') initMap();
+  if (userLat) discoverNearbyChains();
+};
+
+// INIT
+loadBrands().then(() => requestLocation());
+</script>
+<script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC3zjjn8Y4a5VfgoK8CWUsJhElVSdvdfrc&libraries=places,geocoding,marker&callback=mapsLoaded&loading=async"></script>
+</body>
+</html>
