@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>PouchHound — Find the Best Price</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --green: #1D9E75;
+  --green-dark: #0F6E56;
+  --green-light: #E1F5EE;
+  --green-mid: #5DCAA5;
+  --amber: #BA7517;
+  --amber-light: #FAEEDA;
+  --blue: #185FA5;
+  --blue-light: #E6F1FB;
+  --text: #0E1A16;
+  --text-mid: #3D5048;
+  --text-muted: #7A9488;
+  --surface: #F4FAF7;
+  --white: #FFFFFF;
+  --border: rgba(29,158,117,0.15);
+  --radius: 12px;
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html,body { height:100%; font-family:'DM Sans',sans-serif; background:var(--surface); color:var(--text); overflow:hidden; }
+
+/* APP SHELL */
+#app { display:flex; flex-direction:column; height:100vh; max-width:480px; margin:0 auto; background:var(--white); position:relative; box-shadow:0 0 40px rgba(0,0,0,0.08); }
+
+/* HEADER */
+.header { background:var(--white); padding:12px 16px 10px; border-bottom:1px solid var(--border); position:relative; z-index:10; flex-shrink:0; }
+.header-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+.logo { font-family:'Syne',sans-serif; font-weight:800; font-size:20px; color:var(--text); }
+.logo span { color:var(--green); }
+.report-btn { background:var(--green); color:white; border:none; border-radius:20px; padding:7px 14px; font-size:13px; font-weight:500; font-family:'DM Sans',sans-serif; cursor:pointer; transition:background 0.2s; }
+.report-btn:hover { background:var(--green-dark); }
+
+/* CONTROLS ROW */
+.controls { display:flex; gap:8px; align-items:center; }
+.location-bar { flex:1; display:flex; align-items:center; gap:6px; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:7px 10px; font-size:13px; color:var(--text-mid); cursor:pointer; min-width:0; }
+.loc-dot { width:7px; height:7px; border-radius:50%; background:var(--green); flex-shrink:0; }
+.loc-text { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
+.radius-control { display:flex; align-items:center; gap:5px; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:5px 8px; flex-shrink:0; }
+.radius-control input { width:36px; border:none; background:transparent; font-size:13px; font-family:'DM Sans',sans-serif; color:var(--text); text-align:center; outline:none; }
+.radius-label { font-size:11px; color:var(--text-muted); white-space:nowrap; }
+
+/* BRAND FILTER */
+.brand-scroll { display:flex; gap:6px; overflow-x:auto; padding:8px 16px; background:var(--white); border-bottom:1px solid var(--border); flex-shrink:0; scrollbar-width:none; }
+.brand-scroll::-webkit-scrollbar { display:none; }
+.brand-chip { flex-shrink:0; padding:5px 12px; border-radius:20px; font-size:12px; font-weight:500; cursor:pointer; border:1px solid var(--border); background:var(--white); color:var(--text-mid); transition:all 0.15s; white-space:nowrap; }
+.brand-chip.active { background:var(--green); color:white; border-color:var(--green); }
+.brand-chip:hover:not(.active) { border-color:var(--green); color:var(--green); }
+
+/* VIEW TOGGLE */
+.view-toggle { display:flex; gap:0; padding:8px 16px; background:var(--white); border-bottom:1px solid var(--border); flex-shrink:0; }
+.view-btn { flex:1; padding:7px; border:1px solid var(--border); background:var(--white); font-size:12px; font-weight:500; font-family:'DM Sans',sans-serif; cursor:pointer; color:var(--text-muted); transition:all 0.15s; display:flex; align-items:center; justify-content:center; gap:5px; }
+.view-btn:first-child { border-radius:8px 0 0 8px; }
+.view-btn:last-child { border-radius:0 8px 8px 0; border-left:none; }
+.view-btn.active { background:var(--green-light); color:var(--green-dark); border-color:var(--green); z-index:1; }
+
+/* MAIN CONTENT */
+.main { flex:1; overflow:hidden; position:relative; }
+
+/* MAP VIEW */
+#map-view { position:absolute; inset:0; display:none; }
+#map-view.visible { display:block; }
+#map { width:100%; height:100%; }
+
+/* LIST VIEW */
+#list-view { position:absolute; inset:0; overflow-y:auto; display:none; padding:10px 12px 80px; }
+#list-view.visible { display:block; }
+
+.sort-bar { font-size:12px; color:var(--text-muted); margin-bottom:8px; padding:0 2px; }
+.sort-bar strong { color:var(--green-dark); }
+
+/* STORE CARD */
+.store-card { background:var(--white); border-radius:var(--radius); border:1px solid var(--border); margin-bottom:10px; overflow:hidden; }
+.store-card-header { padding:10px 12px 8px; display:flex; justify-content:space-between; align-items:flex-start; }
+.store-name { font-size:14px; font-weight:600; color:var(--text); }
+.store-meta { font-size:11px; color:var(--text-muted); margin-top:2px; }
+.best-badge { background:var(--green-light); color:var(--green-dark); font-size:10px; font-weight:600; padding:3px 8px; border-radius:20px; white-space:nowrap; flex-shrink:0; }
+
+.brand-row { border-top:1px solid rgba(29,158,117,0.08); padding:7px 12px 6px; }
+.brand-row-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+.brand-name { font-size:13px; font-weight:600; color:var(--text); }
+.brand-best { display:flex; align-items:baseline; gap:4px; }
+.brand-shelf { font-size:11px; color:var(--text-muted); text-decoration:line-through; }
+.brand-price { font-size:15px; font-weight:700; color:var(--green); }
+.brand-price.no-deal { color:var(--text-mid); }
+.pills { display:flex; gap:4px; flex-wrap:wrap; }
+.pill { font-size:11px; font-weight:500; padding:3px 7px; border-radius:20px; border:0.5px solid; white-space:nowrap; }
+.pill-shelf { background:var(--surface); color:var(--text-muted); border-color:#ccc; }
+.pill-rewards { background:var(--green-light); color:#085041; border-color:#9FE1CB; }
+.pill-multi { background:var(--amber-light); color:#412402; border-color:#FAC775; }
+.pill-combo { background:var(--blue-light); color:#042C53; border-color:#B5D4F4; }
+
+.confirm-row { padding:3px 12px 6px; font-size:11px; color:var(--text-muted); display:flex; align-items:center; gap:4px; }
+.confirm-dots { display:flex; gap:3px; }
+.cdot { width:4px; height:4px; border-radius:50%; background:var(--green); opacity:0.7; }
+
+.rewards-strip { background:var(--surface); padding:7px 12px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; }
+.rewards-strip-text { font-size:11px; color:#085041; }
+.rewards-strip-text strong { display:block; font-size:12px; }
+.rewards-strip-btn { font-size:11px; font-weight:600; color:var(--green-dark); background:var(--green-light); border:0.5px solid #9FE1CB; border-radius:6px; padding:4px 10px; cursor:pointer; text-decoration:none; }
+
+/* EMPTY STATE */
+.empty-state { text-align:center; padding:60px 20px; color:var(--text-muted); }
+.empty-state h3 { font-size:16px; color:var(--text-mid); margin-bottom:8px; }
+.empty-state p { font-size:14px; line-height:1.6; }
+
+/* LOADING */
+.loading { text-align:center; padding:40px 20px; color:var(--text-muted); font-size:14px; }
+.spinner { width:24px; height:24px; border:2px solid var(--green-light); border-top-color:var(--green); border-radius:50%; animation:spin 0.8s linear infinite; margin:0 auto 12px; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* BOTTOM NAV */
+.bottom-nav { background:var(--white); border-top:1px solid var(--border); display:flex; padding:8px 0 12px; flex-shrink:0; }
+.nav-item { flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; cursor:pointer; padding:4px; }
+.nav-label { font-size:10px; color:var(--text-muted); }
+.nav-label.active { color:var(--green); }
+
+/* MODAL OVERLAY */
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:100; display:none; align-items:flex-end; justify-content:center; max-width:480px; margin:0 auto; }
+.modal-overlay.open { display:flex; }
+.modal { background:var(--white); border-radius:20px 20px 0 0; width:100%; max-height:90vh; overflow-y:auto; padding:20px 20px 40px; }
+.modal-handle { width:40px; height:4px; background:var(--border); border-radius:2px; margin:0 auto 16px; }
+.modal-title { font-family:'Syne',sans-serif; font-weight:700; font-size:18px; color:var(--text); margin-bottom:16px; }
+.modal-close { position:absolute; top:16px; right:16px; background:none; border:none; font-size:20px; cursor:pointer; color:var(--text-muted); line-height:1; }
+
+/* REPORT FORM */
+.form-section { margin-bottom:20px; }
+.form-label { font-size:12px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:8px; display:block; }
+.store-search { width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; font-size:14px; font-family:'DM Sans',sans-serif; outline:none; color:var(--text); }
+.store-search:focus { border-color:var(--green); }
+.store-results { border:1px solid var(--border); border-radius:8px; margin-top:4px; overflow:hidden; display:none; }
+.store-result-item { padding:10px 12px; font-size:13px; cursor:pointer; border-bottom:1px solid var(--border); }
+.store-result-item:last-child { border-bottom:none; }
+.store-result-item:hover { background:var(--surface); }
+.brand-select-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+.brand-select-btn { padding:8px; border:1px solid var(--border); border-radius:8px; font-size:13px; font-weight:500; font-family:'DM Sans',sans-serif; cursor:pointer; background:var(--white); color:var(--text-mid); transition:all 0.15s; text-align:center; }
+.brand-select-btn.selected { background:var(--green-light); border-color:var(--green); color:var(--green-dark); }
+.price-entry-block { border:1px solid var(--border); border-radius:10px; padding:12px; margin-bottom:10px; }
+.price-block-header { font-weight:600; font-size:14px; color:var(--text); margin-bottom:10px; }
+.price-tier-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+.tier-check { width:16px; height:16px; accent-color:var(--green); flex-shrink:0; cursor:pointer; }
+.tier-label { font-size:13px; color:var(--text-mid); flex:1; }
+.tier-input { width:80px; padding:6px 8px; border:1px solid var(--border); border-radius:6px; font-size:13px; font-family:'DM Sans',sans-serif; outline:none; text-align:right; }
+.tier-input:focus { border-color:var(--green); }
+.tier-input:disabled { background:var(--surface); color:var(--text-muted); }
+.qty-select { width:70px; padding:6px 4px; border:1px solid var(--border); border-radius:6px; font-size:12px; font-family:'DM Sans',sans-serif; outline:none; }
+.qty-select:disabled { background:var(--surface); color:var(--text-muted); }
+.submit-btn { width:100%; padding:14px; background:var(--green); color:white; border:none; border-radius:10px; font-size:15px; font-weight:500; font-family:'DM Sans',sans-serif; cursor:pointer; transition:background 0.2s; }
+.submit-btn:hover { background:var(--green-dark); }
+.submit-btn:disabled { background:#ccc; cursor:not-allowed; }
+.success-msg { background:var(--green-light); color:var(--green-dark); border-radius:8px; padding:12px; font-size:13px; margin-bottom:12px; display:none; }
+
+/* MAP INFO WINDOW override */
+.gm-style .gm-style-iw { border-radius:10px!important; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-top">
+      <div class="logo">Pouch<span>Hound</span></div>
+      <button class="report-btn" onclick="openReportModal()">Report Price</button>
+    </div>
+    <div class="controls">
+      <div class="location-bar" onclick="requestLocation()">
+        <div class="loc-dot" id="loc-dot"></div>
+        <span class="loc-text" id="loc-text">Tap to use your location</span>
+      </div>
+      <div class="radius-control">
+        <input type="number" id="radius-input" value="10" min="0.1" max="500" step="0.1" onchange="onRadiusChange()">
+        <span class="radius-label">mi</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- BRAND FILTER -->
+  <div class="brand-scroll" id="brand-scroll">
+    <div class="brand-chip active" data-brand="ALL" onclick="toggleBrand(this)">All</div>
+  </div>
+
+  <!-- VIEW TOGGLE -->
+  <div class="view-toggle">
+    <button class="view-btn active" id="btn-list" onclick="switchView('list')">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="1" y="2" width="14" height="2.5" rx="1" fill="currentColor"/><rect x="1" y="6.5" width="14" height="2.5" rx="1" fill="currentColor"/><rect x="1" y="11" width="14" height="2.5" rx="1" fill="currentColor"/></svg>
+      List
+    </button>
+    <button class="view-btn" id="btn-map" onclick="switchView('map')">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1C5.24 1 3 3.24 3 6c0 3.75 5 9 5 9s5-5.25 5-9c0-2.76-2.24-5-5-5zm0 6.5A1.5 1.5 0 118 4a1.5 1.5 0 010 3z" fill="currentColor"/></svg>
+      Map
+    </button>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div id="list-view" class="visible">
+      <div class="loading" id="loading">
+        <div class="spinner"></div>
+        Loading nearby stores...
+      </div>
+      <div id="store-list" style="display:none;"></div>
+    </div>
+    <div id="map-view">
+      <div id="map"></div>
+    </div>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <div class="bottom-nav">
+    <div class="nav-item">
+      <svg width="18" height="18" viewBox="0 0 22 22" fill="none"><path d="M3 9.5L11 3L19 9.5V19H14V14H8V19H3V9.5Z" stroke="#1D9E75" stroke-width="1.8" stroke-linejoin="round"/></svg>
+      <span class="nav-label active">Nearby</span>
+    </div>
+    <div class="nav-item" onclick="openReportModal()">
+      <svg width="18" height="18" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8" stroke="#7A9488" stroke-width="1.8"/><path d="M11 7v4M11 15v.5" stroke="#7A9488" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <span class="nav-label">Report</span>
+    </div>
+    <div class="nav-item">
+      <svg width="18" height="18" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="9" r="5" stroke="#7A9488" stroke-width="1.8"/><path d="M5 19C5 16.2 7.7 14 11 14s6 2.2 6 5" stroke="#7A9488" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <span class="nav-label">Profile</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- REPORT MODAL -->
+<div class="modal-overlay" id="report-modal" onclick="closeModalOutside(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <button class="modal-close" onclick="closeReportModal()">✕</button>
+    <div class="modal-title">Report Price</div>
+    <div class="success-msg" id="success-msg">✓ Prices submitted successfully!</div>
+
+    <!-- Step 1: Store -->
+    <div class="form-section" id="step-store">
+      <label class="form-label">Store</label>
+      <input type="text" class="store-search" id="store-search" placeholder="Search store name or address..." oninput="searchStores(this.value)">
+      <div class="store-results" id="store-results"></div>
+      <div id="selected-store-display" style="display:none;background:var(--green-light);border-radius:8px;padding:10px 12px;margin-top:8px;font-size:13px;color:var(--green-dark);">
+        <strong id="selected-store-name"></strong>
+        <div id="selected-store-addr" style="font-size:11px;margin-top:2px;opacity:0.8;"></div>
+      </div>
+    </div>
+
+    <!-- Step 2: Brands -->
+    <div class="form-section">
+      <label class="form-label">Brands (select all you saw)</label>
+      <div class="brand-select-grid" id="brand-select-grid"></div>
+    </div>
+
+    <!-- Step 3: Prices -->
+    <div class="form-section" id="price-entries"></div>
+
+    <button class="submit-btn" id="submit-btn" onclick="submitPrices()" disabled>Select a store and brand to continue</button>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://xgngjwjnyemgfblbqxqj.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhnbmdqd2pueWVtZ2ZibGJxeHFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzNjk3NDUsImV4cCI6MjA5MTk0NTc0NX0.TjSdMpDewqYe9AoECIRwMie0d2UoiaJbHfXX_NeM8dw';
+const MAPS_KEY = 'AIzaSyC3zjjn8Y4a5VfgoK8CWUsJhElVSdvdfrc';
+
+let userLat = null, userLng = null;
+let radiusMiles = 10;
+let allStores = [];
+let allBrands = [];
+let selectedBrands = new Set(['ALL']);
+let map = null, markers = [];
+let selectedStoreId = null;
+let selectedBrandsForReport = new Set();
+let currentView = 'list';
+
+// Supabase fetch helper
+async function sb(path, opts={}) {
+  const r = await fetch(SUPABASE_URL + '/rest/v1/' + path, {
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json', 'Prefer': opts.prefer || 'return=representation', ...opts.headers },
+    ...opts
+  });
+  if (!r.ok) { const e = await r.text(); throw new Error(e); }
+  return opts.noJson ? r : r.json();
+}
+
+// Load brands
+async function loadBrands() {
+  const brands = await sb('brands?order=sort_order');
+  allBrands = brands;
+  const scroll = document.getElementById('brand-scroll');
+  brands.forEach(b => {
+    const chip = document.createElement('div');
+    chip.className = 'brand-chip';
+    chip.dataset.brand = b.name;
+    chip.dataset.id = b.id;
+    chip.textContent = b.name;
+    chip.onclick = () => toggleBrand(chip);
+    scroll.appendChild(chip);
+  });
+  buildBrandSelectGrid();
+}
+
+function buildBrandSelectGrid() {
+  const grid = document.getElementById('brand-select-grid');
+  grid.innerHTML = '';
+  allBrands.forEach(b => {
+    const btn = document.createElement('button');
+    btn.className = 'brand-select-btn';
+    btn.dataset.id = b.id;
+    btn.dataset.name = b.name;
+    btn.textContent = b.name;
+    btn.onclick = () => toggleBrandForReport(btn);
+    grid.appendChild(btn);
+  });
+}
+
+function toggleBrand(chip) {
+  const brand = chip.dataset.brand;
+  if (brand === 'ALL') {
+    selectedBrands = new Set(['ALL']);
+    document.querySelectorAll('.brand-chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+  } else {
+    selectedBrands.delete('ALL');
+    document.querySelector('[data-brand="ALL"]').classList.remove('active');
+    if (chip.classList.contains('active')) {
+      chip.classList.remove('active');
+      selectedBrands.delete(brand);
+      if (selectedBrands.size === 0) {
+        selectedBrands.add('ALL');
+        document.querySelector('[data-brand="ALL"]').classList.add('active');
+      }
+    } else {
+      chip.classList.add('active');
+      selectedBrands.add(brand);
+    }
+  }
+  renderStores();
+}
+
+// Location
+function requestLocation() {
+  if (!navigator.geolocation) { alert('Geolocation not supported'); return; }
+  document.getElementById('loc-text').textContent = 'Getting location...';
+  navigator.geolocation.getCurrentPosition(pos => {
+    userLat = pos.coords.latitude;
+    userLng = pos.coords.longitude;
+    document.getElementById('loc-text').textContent = 'Near your location';
+    document.getElementById('loc-dot').style.animation = 'none';
+    loadNearbyStores();
+    if (map) map.setCenter({lat: userLat, lng: userLng});
+  }, err => {
+    // Default to Grand Island NE for demo
+    userLat = 40.9264; userLng = -98.3420;
+    document.getElementById('loc-text').textContent = 'Grand Island, NE (demo)';
+    loadNearbyStores();
+  });
+}
+
+function onRadiusChange() {
+  radiusMiles = parseFloat(document.getElementById('radius-input').value) || 10;
+  if (userLat) loadNearbyStores();
+}
+
+function dist(lat1, lng1, lat2, lng2) {
+  const R = 3958.8;
+  const dLat = (lat2-lat1)*Math.PI/180;
+  const dLng = (lng2-lng1)*Math.PI/180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+async function loadNearbyStores() {
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('store-list').style.display = 'none';
+  try {
+    const stores = await sb('stores?select=*,prices(id,brand_id,shelf_price,rewards_price,multican_qty,multican_total,multican_price_per_can,rewards_multican_qty,rewards_multican_total,rewards_multican_price_per_can,best_price,confirmed_count,updated_at)');
+    allStores = stores.filter(s => {
+      if (!s.lat || !s.lng) return true;
+      return dist(userLat, userLng, s.lat, s.lng) <= radiusMiles;
+    }).map(s => ({
+      ...s,
+      distance: s.lat ? dist(userLat, userLng, s.lat, s.lng) : 999
+    }));
+    renderStores();
+    if (currentView === 'map') updateMapMarkers();
+  } catch(e) {
+    console.error(e);
+    document.getElementById('loading').innerHTML = '<p style="color:red;font-size:13px;">Error loading stores. Check connection.</p>';
+  }
+}
+
+function getBrandName(id) {
+  const b = allBrands.find(x => x.id === id);
+  return b ? b.name : '';
+}
+
+function getBrandId(name) {
+  const b = allBrands.find(x => x.name === name);
+  return b ? b.id : null;
+}
+
+function getStoreBestPrice(store) {
+  if (!store.prices || store.prices.length === 0) return 999;
+  const relevantBrands = selectedBrands.has('ALL') ? allBrands.map(b=>b.id) : [...selectedBrands].map(n => getBrandId(n)).filter(Boolean);
+  const relevantPrices = store.prices.filter(p => relevantBrands.includes(p.brand_id));
+  if (relevantPrices.length === 0) return 999;
+  return Math.min(...relevantPrices.map(p => p.best_price || 999));
+}
+
+function renderStores() {
+  document.getElementById('loading').style.display = 'none';
+  const list = document.getElementById('store-list');
+  list.style.display = 'block';
+
+  const sorted = [...allStores].sort((a, b) => getStoreBestPrice(a) - getStoreBestPrice(b));
+  const relevantBrandIds = selectedBrands.has('ALL') ? allBrands.map(b=>b.id) : [...selectedBrands].map(n => getBrandId(n)).filter(Boolean);
+
+  list.innerHTML = '';
+  if (sorted.length === 0) {
+    list.innerHTML = '<div class="empty-state"><h3>No stores found</h3><p>Try increasing your search radius or report prices at a nearby store.</p></div>';
+    return;
+  }
+
+  const countEl = document.createElement('div');
+  countEl.className = 'sort-bar';
+  const brandLabel = selectedBrands.has('ALL') ? 'all brands' : [...selectedBrands].join(', ');
+  countEl.innerHTML = `<strong>${sorted.length}</strong> stores nearby · sorted by best price · <strong>${brandLabel}</strong>`;
+  list.appendChild(countEl);
+
+  sorted.forEach((store, idx) => {
+    const card = document.createElement('div');
+    card.className = 'store-card';
+    const storeBest = getStoreBestPrice(store);
+    const isFirst = idx === 0 && storeBest < 999;
+    const distStr = store.distance < 999 ? `${store.distance.toFixed(1)} mi` : '';
+    const addrStr = [store.address, store.city, store.state].filter(Boolean).join(', ');
+
+    let headerHTML = `<div class="store-card-header">
+      <div>
+        <div class="store-name">${store.name}</div>
+        <div class="store-meta">${[distStr, addrStr].filter(Boolean).join(' · ')}</div>
+      </div>
+      ${isFirst ? '<div class="best-badge">Best price</div>' : ''}
+    </div>`;
+
+    // Brand rows
+    const pricesToShow = store.prices ? store.prices.filter(p => relevantBrandIds.includes(p.brand_id)) : [];
+    const sortedPrices = pricesToShow.sort((a,b) => (a.best_price||999) - (b.best_price||999));
+
+    let brandsHTML = '';
+    if (sortedPrices.length === 0) {
+      brandsHTML = `<div class="brand-row"><div style="font-size:12px;color:var(--text-muted);padding:4px 0;">No prices reported yet — be the first!</div></div>`;
+    } else {
+      sortedPrices.forEach(p => {
+        const bName = getBrandName(p.brand_id);
+        const best = p.best_price;
+        const pills = [];
+        if (p.shelf_price) pills.push(`<span class="pill pill-shelf">Shelf $${p.shelf_price.toFixed(2)}</span>`);
+        if (p.rewards_price) pills.push(`<span class="pill pill-rewards">Rewards $${p.rewards_price.toFixed(2)}</span>`);
+        if (p.multican_price_per_can) pills.push(`<span class="pill pill-multi">${p.multican_qty}-can $${p.multican_price_per_can.toFixed(2)}</span>`);
+        if (p.rewards_multican_price_per_can) pills.push(`<span class="pill pill-combo">Rewards ${p.rewards_multican_qty}+ $${p.rewards_multican_price_per_can.toFixed(2)}</span>`);
+        const shelfDisplay = p.shelf_price && best < p.shelf_price ? `<span class="brand-shelf">$${p.shelf_price.toFixed(2)}</span>` : '';
+        const priceClass = best && best < 999 ? 'brand-price' : 'brand-price no-deal';
+        const priceDisplay = best && best < 999 ? `$${best.toFixed(2)}` : 'No price';
+        const ago = p.updated_at ? timeAgo(p.updated_at) : '';
+        brandsHTML += `<div class="brand-row">
+          <div class="brand-row-top">
+            <span class="brand-name">${bName}</span>
+            <div class="brand-best">${shelfDisplay}<span class="${priceClass}">${priceDisplay}</span></div>
+          </div>
+          <div class="pills">${pills.join('')}</div>
+          ${ago ? `<div class="confirm-row"><div class="confirm-dots"><div class="cdot"></div><div class="cdot"></div><div class="cdot"></div></div>${p.confirmed_count > 0 ? `Confirmed by ${p.confirmed_count} user${p.confirmed_count>1?'s':''} · ${ago}` : `Reported ${ago}`}</div>` : ''}
+        </div>`;
+      });
+    }
+
+    const rewardsHTML = store.chain ? `<div class="rewards-strip">
+      <div class="rewards-strip-text"><strong>${store.chain} Rewards</strong>Sign up to unlock member prices</div>
+      <a class="rewards-strip-btn" href="#" onclick="return false;">Sign up →</a>
+    </div>` : '';
+
+    card.innerHTML = headerHTML + brandsHTML + rewardsHTML;
+    list.appendChild(card);
+  });
+}
+
+function timeAgo(ts) {
+  const d = Math.floor((Date.now() - new Date(ts)) / 1000);
+  if (d < 60) return 'just now';
+  if (d < 3600) return `${Math.floor(d/60)}m ago`;
+  if (d < 86400) return `${Math.floor(d/3600)}h ago`;
+  return `${Math.floor(d/86400)}d ago`;
+}
+
+// VIEW SWITCHING
+function switchView(view) {
+  currentView = view;
+  document.getElementById('list-view').classList.toggle('visible', view==='list');
+  document.getElementById('map-view').classList.toggle('visible', view==='map');
+  document.getElementById('btn-list').classList.toggle('active', view==='list');
+  document.getElementById('btn-map').classList.toggle('active', view==='map');
+  if (view === 'map' && !map) initMap();
+  if (view === 'map') updateMapMarkers();
+}
+
+function initMap() {
+  const center = userLat ? {lat: userLat, lng: userLng} : {lat: 40.9264, lng: -98.3420};
+  map = new google.maps.Map(document.getElementById('map'), {
+    center, zoom: 13,
+    styles: [{featureType:'poi',stylers:[{visibility:'off'}]},{featureType:'transit',stylers:[{visibility:'off'}]}],
+    disableDefaultUI: true, zoomControl: true
+  });
+}
+
+function updateMapMarkers() {
+  if (!map) return;
+  markers.forEach(m => m.setMap(null));
+  markers = [];
+  const relevantBrandIds = selectedBrands.has('ALL') ? allBrands.map(b=>b.id) : [...selectedBrands].map(n => getBrandId(n)).filter(Boolean);
+  allStores.filter(s => s.lat && s.lng).forEach(store => {
+    const best = getStoreBestPrice(store);
+    const marker = new google.maps.Marker({
+      position: {lat: store.lat, lng: store.lng},
+      map,
+      title: store.name,
+      icon: {
+        path: google.maps.SymbolPath.CIRCLE,
+        fillColor: best < 999 ? '#1D9E75' : '#7A9488',
+        fillOpacity: 1,
+        strokeColor: 'white',
+        strokeWeight: 2,
+        scale: 10
+      }
+    });
+    const info = new google.maps.InfoWindow({
+      content: `<div style="font-family:'DM Sans',sans-serif;padding:4px;"><strong style="font-size:13px;">${store.name}</strong><br><span style="font-size:12px;color:#1D9E75;">${best < 999 ? '$'+best.toFixed(2)+'/can' : 'No prices yet'}</span></div>`
+    });
+    marker.addListener('click', () => { info.open(map, marker); });
+    markers.push(marker);
+  });
+}
+
+// REPORT MODAL
+function openReportModal() {
+  document.getElementById('report-modal').classList.add('open');
+  document.getElementById('success-msg').style.display = 'none';
+  selectedStoreId = null;
+  selectedBrandsForReport = new Set();
+  document.getElementById('store-search').value = '';
+  document.getElementById('store-results').style.display = 'none';
+  document.getElementById('selected-store-display').style.display = 'none';
+  document.getElementById('price-entries').innerHTML = '';
+  document.querySelectorAll('.brand-select-btn').forEach(b => b.classList.remove('selected'));
+  updateSubmitBtn();
+}
+
+function closeReportModal() { document.getElementById('report-modal').classList.remove('open'); }
+function closeModalOutside(e) { if (e.target === document.getElementById('report-modal')) closeReportModal(); }
+
+async function searchStores(q) {
+  if (q.length < 2) { document.getElementById('store-results').style.display = 'none'; return; }
+  const results = await sb(`stores?name=ilike.*${q}*&limit=6`);
+  const el = document.getElementById('store-results');
+  if (results.length === 0) {
+    el.style.display = 'none'; return;
+  }
+  el.innerHTML = results.map(s => `<div class="store-result-item" onclick="selectStore('${s.id}','${s.name.replace(/'/g,"\\'")}','${(s.address||'').replace(/'/g,"\\'")}')">
+    <strong>${s.name}</strong><br><span style="font-size:11px;color:#7A9488;">${[s.address,s.city,s.state].filter(Boolean).join(', ')}</span>
+  </div>`).join('') + `<div class="store-result-item" onclick="addNewStore('${q}')" style="color:var(--green);font-weight:500;">+ Add "${q}" as new store</div>`;
+  el.style.display = 'block';
+}
+
+function selectStore(id, name, addr) {
+  selectedStoreId = id;
+  document.getElementById('store-results').style.display = 'none';
+  document.getElementById('store-search').value = name;
+  document.getElementById('selected-store-name').textContent = name;
+  document.getElementById('selected-store-addr').textContent = addr;
+  document.getElementById('selected-store-display').style.display = 'block';
+  updateSubmitBtn();
+}
+
+async function addNewStore(name) {
+  const addr = prompt('Enter address (optional):') || '';
+  const city = prompt('Enter city:') || '';
+  const state = prompt('Enter state (e.g. NE):') || '';
+  const newStore = await sb('stores', { method:'POST', body: JSON.stringify({ name, address:addr, city, state }) });
+  if (newStore && newStore[0]) {
+    selectStore(newStore[0].id, name, [addr,city,state].filter(Boolean).join(', '));
+    allStores.push({...newStore[0], prices:[], distance:999});
+  }
+  document.getElementById('store-results').style.display = 'none';
+}
+
+function toggleBrandForReport(btn) {
+  const id = parseInt(btn.dataset.id);
+  const name = btn.dataset.name;
+  if (btn.classList.contains('selected')) {
+    btn.classList.remove('selected');
+    selectedBrandsForReport.delete(id);
+  } else {
+    btn.classList.add('selected');
+    selectedBrandsForReport.add(id);
+  }
+  buildPriceEntries();
+  updateSubmitBtn();
+}
+
+function buildPriceEntries() {
+  const container = document.getElementById('price-entries');
+  container.innerHTML = '';
+  selectedBrandsForReport.forEach(brandId => {
+    const brand = allBrands.find(b => b.id === brandId);
+    if (!brand) return;
+    const block = document.createElement('div');
+    block.className = 'price-entry-block';
+    block.innerHTML = `<div class="price-block-header">${brand.name}</div>
+      <div class="price-tier-row">
+        <input type="checkbox" class="tier-check" id="shelf-chk-${brandId}" onchange="toggleTier(this,'shelf-${brandId}')">
+        <label class="tier-label" for="shelf-chk-${brandId}">Shelf price</label>
+        <input type="number" class="tier-input" id="shelf-${brandId}" placeholder="$0.00" step="0.01" min="0" disabled>
+      </div>
+      <div class="price-tier-row">
+        <input type="checkbox" class="tier-check" id="rew-chk-${brandId}" onchange="toggleTier(this,'rew-${brandId}')">
+        <label class="tier-label" for="rew-chk-${brandId}">Rewards price</label>
+        <input type="number" class="tier-input" id="rew-${brandId}" placeholder="$0.00" step="0.01" min="0" disabled>
+      </div>
+      <div class="price-tier-row">
+        <input type="checkbox" class="tier-check" id="mc-chk-${brandId}" onchange="toggleTier(this,'mc-${brandId}','mc-qty-${brandId}')">
+        <label class="tier-label" for="mc-chk-${brandId}">Multi-can total</label>
+        <select class="qty-select" id="mc-qty-${brandId}" disabled>
+          ${[2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}">${n} for</option>`).join('')}
+        </select>
+        <input type="number" class="tier-input" id="mc-${brandId}" placeholder="$0.00" step="0.01" min="0" disabled>
+      </div>
+      <div class="price-tier-row">
+        <input type="checkbox" class="tier-check" id="rmc-chk-${brandId}" onchange="toggleTier(this,'rmc-${brandId}','rmc-qty-${brandId}')">
+        <label class="tier-label" for="rmc-chk-${brandId}">Rewards multi-can</label>
+        <select class="qty-select" id="rmc-qty-${brandId}" disabled>
+          ${[2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}">${n} for</option>`).join('')}
+        </select>
+        <input type="number" class="tier-input" id="rmc-${brandId}" placeholder="$0.00" step="0.01" min="0" disabled>
+      </div>`;
+    container.appendChild(block);
+  });
+}
+
+function toggleTier(chk, inputId, qtyId) {
+  document.getElementById(inputId).disabled = !chk.checked;
+  if (qtyId) document.getElementById(qtyId).disabled = !chk.checked;
+  if (chk.checked) document.getElementById(inputId).focus();
+}
+
+function updateSubmitBtn() {
+  const btn = document.getElementById('submit-btn');
+  if (!selectedStoreId) { btn.disabled=true; btn.textContent='Select a store to continue'; return; }
+  if (selectedBrandsForReport.size === 0) { btn.disabled=true; btn.textContent='Select at least one brand'; return; }
+  btn.disabled=false; btn.textContent=`Submit ${selectedBrandsForReport.size} brand${selectedBrandsForReport.size>1?'s':''} price report`;
+}
+
+async function submitPrices() {
+  const btn = document.getElementById('submit-btn');
+  btn.disabled=true; btn.textContent='Submitting...';
+  const reports = [];
+  for (const brandId of selectedBrandsForReport) {
+    const shelfChk = document.getElementById(`shelf-chk-${brandId}`);
+    const rewChk = document.getElementById(`rew-chk-${brandId}`);
+    const mcChk = document.getElementById(`mc-chk-${brandId}`);
+    const rmcChk = document.getElementById(`rmc-chk-${brandId}`);
+    const shelf = shelfChk?.checked ? parseFloat(document.getElementById(`shelf-${brandId}`).value)||null : null;
+    const rew = rewChk?.checked ? parseFloat(document.getElementById(`rew-${brandId}`).value)||null : null;
+    const mcQty = mcChk?.checked ? parseInt(document.getElementById(`mc-qty-${brandId}`).value)||null : null;
+    const mcTotal = mcChk?.checked ? parseFloat(document.getElementById(`mc-${brandId}`).value)||null : null;
+    const rmcQty = rmcChk?.checked ? parseInt(document.getElementById(`rmc-qty-${brandId}`).value)||null : null;
+    const rmcTotal = rmcChk?.checked ? parseFloat(document.getElementById(`rmc-${brandId}`).value)||null : null;
+    if (!shelf && !rew && !mcTotal && !rmcTotal) continue;
+    reports.push({ store_id: selectedStoreId, brand_id: brandId, shelf_price: shelf, rewards_price: rew, multican_qty: mcQty, multican_total: mcTotal, rewards_multican_qty: rmcQty, rewards_multican_total: rmcTotal, updated_at: new Date().toISOString() });
+  }
+  if (reports.length === 0) { btn.disabled=false; btn.textContent='Enter at least one price'; return; }
+  try {
+    await sb('prices', { method:'POST', body: JSON.stringify(reports), prefer:'return=minimal', headers:{'Prefer':'return=minimal'} });
+    document.getElementById('success-msg').style.display='block';
+    setTimeout(() => { closeReportModal(); loadNearbyStores(); }, 1500);
+  } catch(e) {
+    alert('Error submitting: ' + e.message);
+    btn.disabled=false; btn.textContent='Try again';
+  }
+}
+
+// INIT
+window.initMap = function() {};
+loadBrands().then(() => {
+  requestLocation();
+});
+</script>
+<script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC3zjjn8Y4a5VfgoK8CWUsJhElVSdvdfrc&libraries=places&callback=initMap"></script>
+</body>
+</html>
