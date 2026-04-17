@@ -953,7 +953,7 @@ async function validatePrices() {
       if (!chk?.checked) continue;
       const val = parseFloat(get(tier.valId)?.value);
       if (!val) continue;
-      if (val < 2.00) priceBlocks.push({ label: tier.label, price: val });
+      if (val < 1.50) priceBlocks.push({ label: tier.label, price: val });
       else if (val > 12.00) priceWarnings.push({ label: tier.label, price: val });
     }
     // Multi-can - validate per-can price
@@ -969,7 +969,7 @@ async function validatePrices() {
       const qty = parseInt(get(tier.qtyId)?.value);
       if (!total || !qty) continue;
       const perCan = total / qty;
-      if (perCan < 2.00) priceBlocks.push({ label: tier.label, price: perCan, isPerCan: true });
+      if (perCan < 1.50) priceBlocks.push({ label: tier.label, price: perCan, isPerCan: true });
       else if (perCan > 12.00) priceWarnings.push({ label: tier.label, price: perCan, isPerCan: true });
     }
   }
@@ -987,7 +987,7 @@ Please double-check before submitting.`);
     if (sure) {
       alert(`❌ Price too low
 
-Prices below $2.00 per can cannot be submitted. Please correct the following:
+Prices below $1.50 per can cannot be submitted. Please correct the following:
 ${lines}`);
       return false;
     }
@@ -1050,18 +1050,15 @@ async function submitPrices() {
 }
 
 function shareApp() {
+  const text = 'Find the best nicotine pouch prices near you — ZYN, On!, VELO and more at Casey\'s, Kwik Trip, Circle K and more.';
+  const url = 'https://pouchhound.com/app.html';
   if (navigator.share) {
-    navigator.share({
-      title: 'PouchHound',
-      text: 'Find the best nicotine pouch prices near you — ZYN, On!, VELO and more at Casey\'s, Kwik Trip, Circle K and more.',
-      url: 'https://pouchhound.com/app.html'
-    }).catch(() => {});
+    navigator.share({ title: 'PouchHound', text: text, url: url }).catch(() => {});
   } else {
-    // Fallback — copy link to clipboard
-    navigator.clipboard.writeText('https://pouchhound.com/app.html').then(() => {
-      alert('Link copied! Share it with friends: pouchhound.com/app.html');
+    navigator.clipboard.writeText(url).then(() => {
+      alert('Link copied! Share it: pouchhound.com/app.html');
     }).catch(() => {
-      prompt('Copy this link to share PouchHound:', 'https://pouchhound.com/app.html');
+      alert('Share this link: pouchhound.com/app.html');
     });
   }
 }
@@ -1079,17 +1076,9 @@ window.mapsLoaded = function() {
 };
 
 // INIT
-window.onerror = function(msg, src, line) {
-  console.error('JS Error:', msg, 'line:', line);
-  const loading = document.getElementById('loading');
-  if (loading && loading.style.display !== 'none') {
-    loading.innerHTML = '<p style="color:#E24B4A;font-size:13px;">Something went wrong loading the app.<br><small>' + msg + '</small><br><button onclick="location.reload()" style="margin-top:8px;padding:6px 12px;background:#1D9E75;color:white;border:none;border-radius:6px;cursor:pointer;">Retry</button></p>';
-  }
-};
+window.onerror = function(msg, src, line) { console.error("JS Error:", msg, "line:", line); };
 checkDisclaimer();
-loadBrands().then(() => requestLocation()).catch(e => {
-  document.getElementById('loading').innerHTML = '<p style="color:#E24B4A;font-size:13px;">Error starting app: ' + e.message + '<br><button onclick="location.reload()" style="margin-top:8px;padding:6px 12px;background:#1D9E75;color:white;border:none;border-radius:6px;cursor:pointer;">Retry</button></p>';
-});
+loadBrands().then(() => requestLocation()).catch(e => console.error('Init error:', e));
 </script>
 <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC3zjjn8Y4a5VfgoK8CWUsJhElVSdvdfrc&libraries=places,geocoding&callback=mapsLoaded&loading=async"></script>
 </body>
