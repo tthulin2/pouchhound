@@ -92,6 +92,11 @@ html,body { height:100%; font-family:'DM Sans',sans-serif; background:var(--surf
 .store-card { background:var(--white); border-radius:var(--radius); border:1px solid var(--border); margin-bottom:10px; overflow:hidden; transition:all 0.2s; cursor:pointer; }
 .store-card:hover { box-shadow:0 4px 16px rgba(29,158,117,0.1); }
 .store-card.highlighted { border-color:var(--green); box-shadow:0 0 0 2px rgba(29,158,117,0.15); }
+.price-change-warning { background:#FFF8E1; border-top:1px solid #FFE082; padding:6px 12px; font-size:11px; color:#7B5800; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.price-change-warning .warn-text { display:flex; align-items:center; gap:5px; }
+.confirm-new-btn { font-size:11px; font-weight:600; color:#7B5800; background:#FFE082; border:none; border-radius:6px; padding:4px 8px; cursor:pointer; white-space:nowrap; }
+.confirm-old-btn { font-size:11px; font-weight:600; color:var(--green-dark); background:var(--green-light); border:none; border-radius:6px; padding:4px 8px; cursor:pointer; white-space:nowrap; }
+.price-dimmed { opacity:0.45; }
 .store-card-header { padding:10px 12px 8px; display:flex; justify-content:space-between; align-items:flex-start; }
 .store-name { font-size:14px; font-weight:600; color:var(--text); }
 .store-meta { font-size:11px; color:var(--text-muted); margin-top:2px; }
@@ -723,6 +728,8 @@ function renderStores() {
     const isEstimated = pricesToShow.length > 0 && pricesToShow.every(p=>p.estimated);
 
     let brandsHTML = '';
+    // Check for price change warning
+    const hasPriceWarning = (store.prices||[]).some(p => relevantIds.includes(p.brand_id) && p.price_change_flagged);
     if (!pricesToShow.length) {
       brandsHTML = `<div class="brand-row"><div style="font-size:12px;color:var(--text-muted);padding:4px 0 2px;">No prices reported yet — <span style="color:var(--green);cursor:pointer;font-weight:500;" onclick="event.stopPropagation();openReportModalForStore('${store.id}','${store.name.replace(/'/g,"\\'")}')">be the first!</span></div></div>`;
     } else {
@@ -750,10 +757,25 @@ function renderStores() {
       });
     }
 
+    // Price change warning banner
+    const warningBrands = (store.prices||[]).filter(p => relevantIds.includes(p.brand_id) && p.price_change_flagged);
+    let warningHTML = '';
+    if (warningBrands.length > 0) {
+      const wb = warningBrands[0];
+      const bName = getBrandName(wb.brand_id);
+      const newPrice = wb.pending_price ? '$' + Number(wb.pending_price).toFixed(2) : 'a higher price';
+      warningHTML = `<div class="price-change-warning">
+        <div class="warn-text">⚠️ ${bName} may be ${newPrice} here — confirm?</div>
+        <div style="display:flex;gap:5px;">
+          <button class="confirm-new-btn" onclick="event.stopPropagation();confirmPriceChange('${store.id}','${wb.brand_id}',true,${wb.pending_price||0})">Yes, higher</button>
+          <button class="confirm-old-btn" onclick="event.stopPropagation();confirmPriceChange('${store.id}','${wb.brand_id}',false,${wb.pending_price||0})">No, same</button>
+        </div>
+      </div>`;
+    }
     const rewardsUrl = store.chain ? REWARDS_LINKS[store.chain] : null;
     const rewardsHTML = store.chain ? `<div class="rewards-strip"><div class="rewards-strip-text"><strong>${store.chain} Rewards</strong>Sign up to unlock member prices</div><a class="rewards-strip-btn" href="${rewardsUrl||'#'}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Sign up →</a></div>` : '';
 
-    card.innerHTML = `<div class="store-card-header"><div><div class="store-name">${store.name}</div><div class="store-meta">${[distStr,addrStr].filter(Boolean).join(' · ')}</div></div>${isFirst?'<div class="best-badge">Best price</div>':''}</div>${brandsHTML}${rewardsHTML}`;
+    card.innerHTML = `<div class="store-card-header"><div><div class="store-name">${store.name}</div><div class="store-meta">${[distStr,addrStr].filter(Boolean).join(' · ')}</div></div>${isFirst?'<div class="best-badge">Best price</div>':''}</div>${brandsHTML}${warningHTML}${rewardsHTML}`;
     card.onclick = () => focusStoreOnMap(store);
     list.appendChild(card);
   });
@@ -911,20 +933,38 @@ function buildPriceEntries() {
     const block = document.createElement('div');
     block.className = 'price-entry-block';
     block.innerHTML = `<div class="price-block-header">${brand.name} <span style="font-size:11px;font-weight:400;color:var(--text-muted);">check tiers you saw</span></div>
-      <div class="price-tier-row"><input type="checkbox" class="tier-check" id="s-c-${brandId}" onchange="toggleTier(this,'s-${brandId}')"><div class="tier-dot" style="background:#ccc;"></div><label class="tier-label" for="s-c-${brandId}">Shelf (single)</label><input type="number" class="tier-input" id="s-${brandId}" placeholder="$0.00" step="0.01" min="0" inputmode="decimal" disabled></div>
-      <div class="price-tier-row"><input type="checkbox" class="tier-check" id="sl-c-${brandId}" onchange="toggleTier(this,'sl-${brandId}')"><div class="tier-dot" style="background:#F1948A;"></div><label class="tier-label" for="sl-c-${brandId}">Sale (single)</label><input type="number" class="tier-input" id="sl-${brandId}" placeholder="$0.00" step="0.01" min="0" inputmode="decimal" disabled></div>
-      <div class="price-tier-row"><input type="checkbox" class="tier-check" id="r-c-${brandId}" onchange="toggleTier(this,'r-${brandId}')"><div class="tier-dot" style="background:#9FE1CB;"></div><label class="tier-label" for="r-c-${brandId}">Rewards (single)</label><input type="number" class="tier-input" id="r-${brandId}" placeholder="$0.00" step="0.01" min="0" inputmode="decimal" disabled></div>
-      <div class="price-tier-row"><input type="checkbox" class="tier-check" id="m-c-${brandId}" onchange="toggleTier(this,'m-${brandId}','mq-${brandId}')"><div class="tier-dot" style="background:#FAC775;"></div><label class="tier-label" for="m-c-${brandId}">Multi-can total</label><select class="qty-select" id="mq-${brandId}" disabled>${[2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}">${n} for</option>`).join('')}</select><input type="number" class="tier-input" id="m-${brandId}" placeholder="$0.00" step="0.01" min="0" inputmode="decimal" disabled></div>
-      <div class="price-tier-row"><input type="checkbox" class="tier-check" id="sm-c-${brandId}" onchange="toggleTier(this,'sm-${brandId}','smq-${brandId}')"><div class="tier-dot" style="background:#C39BD3;"></div><label class="tier-label" for="sm-c-${brandId}">Sale multi-can</label><select class="qty-select" id="smq-${brandId}" disabled>${[2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}">${n} for</option>`).join('')}</select><input type="number" class="tier-input" id="sm-${brandId}" placeholder="$0.00" step="0.01" min="0" inputmode="decimal" disabled></div>
-      <div class="price-tier-row"><input type="checkbox" class="tier-check" id="rc-c-${brandId}" onchange="toggleTier(this,'rc-${brandId}','rcq-${brandId}')"><div class="tier-dot" style="background:#B5D4F4;"></div><label class="tier-label" for="rc-c-${brandId}">Rewards (multi-can)</label><select class="qty-select" id="rcq-${brandId}" disabled>${[2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}">${n} for</option>`).join('')}</select><input type="number" class="tier-input" id="rc-${brandId}" placeholder="$0.00" step="0.01" min="0" inputmode="decimal" disabled></div>`;
+      <div class="price-tier-row"><input type="checkbox" class="tier-check" id="s-c-${brandId}" onchange="toggleTier(this,'s-${brandId}')"><div class="tier-dot" style="background:#ccc;"></div><label class="tier-label" for="s-c-${brandId}">Shelf (single)</label><input type="number" class="tier-input" id="s-${brandId}" placeholder="0.00" step="0.01" min="0" inputmode="numeric" onkeydown="calcInput(event)" data-cents="0" disabled></div>
+      <div class="price-tier-row"><input type="checkbox" class="tier-check" id="sl-c-${brandId}" onchange="toggleTier(this,'sl-${brandId}')"><div class="tier-dot" style="background:#F1948A;"></div><label class="tier-label" for="sl-c-${brandId}">Sale (single)</label><input type="number" class="tier-input" id="sl-${brandId}" placeholder="0.00" step="0.01" min="0" inputmode="numeric" onkeydown="calcInput(event)" data-cents="0" disabled></div>
+      <div class="price-tier-row"><input type="checkbox" class="tier-check" id="r-c-${brandId}" onchange="toggleTier(this,'r-${brandId}')"><div class="tier-dot" style="background:#9FE1CB;"></div><label class="tier-label" for="r-c-${brandId}">Rewards (single)</label><input type="number" class="tier-input" id="r-${brandId}" placeholder="0.00" step="0.01" min="0" inputmode="numeric" onkeydown="calcInput(event)" data-cents="0" disabled></div>
+      <div class="price-tier-row"><input type="checkbox" class="tier-check" id="m-c-${brandId}" onchange="toggleTier(this,'m-${brandId}','mq-${brandId}')"><div class="tier-dot" style="background:#FAC775;"></div><label class="tier-label" for="m-c-${brandId}">Multi-can total</label><select class="qty-select" id="mq-${brandId}" disabled>${[2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}">${n} for</option>`).join('')}</select><input type="number" class="tier-input" id="m-${brandId}" placeholder="0.00" step="0.01" min="0" inputmode="numeric" onkeydown="calcInput(event)" data-cents="0" disabled></div>
+      <div class="price-tier-row"><input type="checkbox" class="tier-check" id="sm-c-${brandId}" onchange="toggleTier(this,'sm-${brandId}','smq-${brandId}')"><div class="tier-dot" style="background:#C39BD3;"></div><label class="tier-label" for="sm-c-${brandId}">Sale multi-can</label><select class="qty-select" id="smq-${brandId}" disabled>${[2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}">${n} for</option>`).join('')}</select><input type="number" class="tier-input" id="sm-${brandId}" placeholder="0.00" step="0.01" min="0" inputmode="numeric" onkeydown="calcInput(event)" data-cents="0" disabled></div>
+      <div class="price-tier-row"><input type="checkbox" class="tier-check" id="rc-c-${brandId}" onchange="toggleTier(this,'rc-${brandId}','rcq-${brandId}')"><div class="tier-dot" style="background:#B5D4F4;"></div><label class="tier-label" for="rc-c-${brandId}">Rewards (multi-can)</label><select class="qty-select" id="rcq-${brandId}" disabled>${[2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}">${n} for</option>`).join('')}</select><input type="number" class="tier-input" id="rc-${brandId}" placeholder="0.00" step="0.01" min="0" inputmode="numeric" onkeydown="calcInput(event)" data-cents="0" disabled></div>`;
     c.appendChild(block);
   });
 }
 
 function toggleTier(chk, inputId, qtyId) {
-  document.getElementById(inputId).disabled = !chk.checked;
+  const inp = document.getElementById(inputId);
+  inp.disabled = !chk.checked;
   if (qtyId) document.getElementById(qtyId).disabled = !chk.checked;
-  if (chk.checked) document.getElementById(inputId).focus();
+  if (chk.checked) { inp.value = ''; inp.dataset.cents = '0'; inp.focus(); }
+}
+
+function calcInput(e) {
+  const inp = e.target;
+  const key = e.key;
+  e.preventDefault();
+  let cents = parseInt(inp.dataset.cents || '0');
+  if (key === 'Backspace') {
+    cents = Math.floor(cents / 10);
+  } else if (key >= '0' && key <= '9') {
+    const newCents = cents * 10 + parseInt(key);
+    if (newCents <= 99999) cents = newCents; // max $999.99
+  } else {
+    return;
+  }
+  inp.dataset.cents = cents;
+  inp.value = cents > 0 ? (cents / 100).toFixed(2) : '';
 }
 
 function updateSubmitBtn() {
@@ -1007,6 +1047,16 @@ async function submitPrices() {
   try {
     await sb('prices?on_conflict=store_id,brand_id', { method:'POST', prefer:'return=minimal,resolution=merge-duplicates', body:JSON.stringify(reports) });
     sessionReportsCount += reports.length;
+    // Check for price increases and flag chain stores
+    for (const report of reports) {
+      const existingStore = allStores.find(s => s.id === report.store_id);
+      if (existingStore) {
+        const existingPrice = (existingStore.prices||[]).find(p => p.brand_id === report.brand_id);
+        if (existingPrice && report.shelf_price > existingPrice.shelf_price) {
+          await detectAndFlagPriceChange(report, existingPrice);
+        }
+      }
+    }
     document.getElementById('success-msg').style.display='block';
     setTimeout(()=>{ closeReportModal(); discoveryRun=false; loadNearbyStores(); }, 1800);
   } catch(e) {
@@ -1033,6 +1083,53 @@ function shareApp() {
       alert('Share this link: pouchhound.com/app.html');
     });
   }
+}
+
+async function confirmPriceChange(storeId, brandId, confirmNew, pendingPrice) {
+  try {
+    const store = allStores.find(s => s.id === storeId);
+    if (!store || !store.chain || !store.state) return;
+    if (confirmNew) {
+      // New higher price confirmed - update all chain stores in state
+      const chainStores = await sb('stores?chain=eq.' + encodeURIComponent(store.chain) + '&state=eq.' + store.state + '&select=id');
+      for (const cs of chainStores) {
+        await sb('prices?store_id=eq.' + cs.id + '&brand_id=eq.' + brandId, {
+          method: 'PATCH', prefer: 'return=minimal',
+          body: JSON.stringify({ shelf_price: pendingPrice, pending_price: null, price_change_flagged: false, price_change_reported_at: null, updated_at: new Date().toISOString() })
+        });
+      }
+    } else {
+      // Old lower price confirmed - clear warning for all chain stores in state
+      const chainStores = await sb('stores?chain=eq.' + encodeURIComponent(store.chain) + '&state=eq.' + store.state + '&select=id');
+      for (const cs of chainStores) {
+        await sb('prices?store_id=eq.' + cs.id + '&brand_id=eq.' + brandId, {
+          method: 'PATCH', prefer: 'return=minimal',
+          body: JSON.stringify({ pending_price: null, price_change_flagged: false, price_change_reported_at: null })
+        });
+      }
+    }
+    discoveryRun = false;
+    loadNearbyStores();
+  } catch(e) { console.error('confirmPriceChange error:', e); }
+}
+
+async function detectAndFlagPriceChange(report, existingPrice) {
+  if (!existingPrice || !report.shelf_price) return false;
+  if (report.shelf_price <= existingPrice.shelf_price) return false;
+  // New price is higher - flag all same chain+state stores
+  try {
+    const store = allStores.find(s => s.id === report.store_id);
+    if (!store || !store.chain || !store.state) return false;
+    const chainStores = await sb('stores?chain=eq.' + encodeURIComponent(store.chain) + '&state=eq.' + store.state + '&select=id');
+    for (const cs of chainStores) {
+      if (cs.id === report.store_id) continue; // skip the reporting store
+      await sb('prices?store_id=eq.' + cs.id + '&brand_id=eq.' + report.brand_id, {
+        method: 'PATCH', prefer: 'return=minimal',
+        body: JSON.stringify({ pending_price: report.shelf_price, price_change_flagged: true, price_change_reported_at: new Date().toISOString() })
+      });
+    }
+    return true;
+  } catch(e) { return false; }
 }
 
 window.mapsLoaded = function() {
