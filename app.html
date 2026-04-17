@@ -661,7 +661,12 @@ async function discoverNearbyChains() {
             address = addrParts.slice(0, addrParts.length-3).join(', ');
           }
           try {
-            const ins = await sb('stores', { method:'POST', prefer:'return=representation', body: JSON.stringify({ name: place.displayName, chain: chainName, address, city, state, zip, lat, lng, google_place_id: place.id }) });
+            // Use canonical chain name if display name is a weird variant
+          const storeName = place.displayName.toLowerCase().includes(chainName.toLowerCase().replace("'s","").replace("'","")) && 
+            (place.displayName.includes('ATM') || place.displayName.includes('Car Wash') || 
+             place.displayName.match(/^[A-Z][a-z]+ \(/) || place.displayName.match(/\(.*\)$/))
+            ? chainName : place.displayName;
+          const ins = await sb('stores', { method:'POST', prefer:'return=representation', body: JSON.stringify({ name: storeName, chain: chainName, address, city, state, zip, lat, lng, google_place_id: place.id }) });
             if (ins?.[0]) allStores.push({...ins[0], prices:[], distance:d});
           } catch(e) { /* duplicate */ }
         }
@@ -949,7 +954,7 @@ async function submitPrices() {
   }
   if (!reports.length) { btn.disabled=false; btn.textContent='Enter at least one price'; return; }
   try {
-    await sb('prices', { method:'POST', prefer:'return=minimal', body:JSON.stringify(reports) });
+    await sb('prices?on_conflict=store_id,brand_id', { method:'POST', prefer:'return=minimal,resolution=merge-duplicates', body:JSON.stringify(reports) });
     sessionReportsCount += reports.length;
     document.getElementById('success-msg').style.display='block';
     setTimeout(()=>{ closeReportModal(); discoveryRun=false; loadNearbyStores(); }, 1800);
