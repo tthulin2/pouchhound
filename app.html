@@ -346,7 +346,7 @@ html,body { height:100%; font-family:'DM Sans',sans-serif; background:var(--surf
     <button class="modal-close" onclick="closeReportModal()">✕</button>
     <div class="modal-title">Report Price</div>
     <div class="success-msg" id="success-msg">✓ Prices submitted! Thank you.</div>
-    <div class="disclaimer-text">By submitting you confirm these prices are accurate to the best of your knowledge. Prices are reported by users and PouchHound accepts no liability for inaccurate information.</div>
+    <div class="disclaimer-text">Enter shelf prices as shown on the tag — before tax. By submitting you confirm these prices are accurate to the best of your knowledge. PouchHound accepts no liability for inaccurate information.</div>
 
     <div class="form-section">
       <label class="form-label">Store</label>
@@ -934,8 +934,87 @@ function updateSubmitBtn() {
   btn.disabled=false; btn.textContent=`Submit ${selectedBrandsForReport.size} brand${selectedBrandsForReport.size>1?'s':''} — Report Price`;
 }
 
+async function validatePrices() {
+  // Collect all per-can prices to validate
+  const priceWarnings = [];
+  const priceBlocks = [];
+  for (const brandId of selectedBrandsForReport) {
+    const brand = allBrands.find(b=>b.id===brandId);
+    const bName = brand ? brand.name : 'Unknown';
+    const get = (id) => document.getElementById(id);
+    // Single can prices
+    const tiers = [
+      { chkId: `s-c-${brandId}`, valId: `s-${brandId}`, label: `${bName} Shelf (single)` },
+      { chkId: `sl-c-${brandId}`, valId: `sl-${brandId}`, label: `${bName} Sale (single)` },
+      { chkId: `r-c-${brandId}`, valId: `r-${brandId}`, label: `${bName} Rewards (single)` },
+    ];
+    for (const tier of tiers) {
+      const chk = get(tier.chkId);
+      if (!chk?.checked) continue;
+      const val = parseFloat(get(tier.valId)?.value);
+      if (!val) continue;
+      if (val < 2.00) priceBlocks.push({ label: tier.label, price: val });
+      else if (val > 12.00) priceWarnings.push({ label: tier.label, price: val });
+    }
+    // Multi-can - validate per-can price
+    const multiTiers = [
+      { chkId: `m-c-${brandId}`, valId: `m-${brandId}`, qtyId: `mq-${brandId}`, label: `${bName} Shelf (multi-can)` },
+      { chkId: `sm-c-${brandId}`, valId: `sm-${brandId}`, qtyId: `smq-${brandId}`, label: `${bName} Sale (multi-can)` },
+      { chkId: `rc-c-${brandId}`, valId: `rc-${brandId}`, qtyId: `rcq-${brandId}`, label: `${bName} Rewards (multi-can)` },
+    ];
+    for (const tier of multiTiers) {
+      const chk = get(tier.chkId);
+      if (!chk?.checked) continue;
+      const total = parseFloat(get(tier.valId)?.value);
+      const qty = parseInt(get(tier.qtyId)?.value);
+      if (!total || !qty) continue;
+      const perCan = total / qty;
+      if (perCan < 2.00) priceBlocks.push({ label: tier.label, price: perCan, isPerCan: true });
+      else if (perCan > 12.00) priceWarnings.push({ label: tier.label, price: perCan, isPerCan: true });
+    }
+  }
+
+  // Handle blocks first - under $2.00
+  if (priceBlocks.length > 0) {
+    const lines = priceBlocks.map(p => `• ${p.label}: $${p.price.toFixed(2)}${p.isPerCan?' per can':''}`).join('
+');
+    const sure = confirm(`⚠️ Are you sure?
+
+The following prices seem unusually low:
+${lines}
+
+Please double-check before submitting.`);
+    if (sure) {
+      alert(`❌ Price too low
+
+Prices below $2.00 per can cannot be submitted. Please correct the following:
+${lines}`);
+      return false;
+    }
+    return false;
+  }
+
+  // Handle warnings - over $12.00
+  if (priceWarnings.length > 0) {
+    const lines = priceWarnings.map(p => `• ${p.label}: $${p.price.toFixed(2)}${p.isPerCan?' per can':''}`).join('
+');
+    const sure = confirm(`⚠️ Are you sure?
+
+The following prices seem unusually high:
+${lines}
+
+This may be correct in some states. Submit anyway?`);
+    if (!sure) return false;
+  }
+
+  return true;
+}
+
 async function submitPrices() {
   const btn = document.getElementById('submit-btn');
+  // Validate prices first
+  const valid = await validatePrices();
+  if (!valid) return;
   btn.disabled=true; btn.textContent='Submitting...';
   const reports = [];
   for (const brandId of selectedBrandsForReport) {
