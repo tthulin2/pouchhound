@@ -553,9 +553,11 @@ function requestLocation() {
   if (!navigator.geolocation) { useDefaultLocation(); return; }
   navigator.geolocation.getCurrentPosition(pos => {
     userLat = pos.coords.latitude; userLng = pos.coords.longitude;
-    reverseGeocode(userLat, userLng);
+    document.getElementById('loc-text').textContent = 'Near your location';
     loadNearbyStores();
     if (map) map.setCenter({lat:userLat, lng:userLng});
+    // Reverse geocode in background - non-blocking
+    if (mapsReady) setTimeout(() => reverseGeocode(userLat, userLng), 200);
   }, () => useDefaultLocation());
 }
 
@@ -595,11 +597,26 @@ async function loadNearbyStores() {
       if (!s.lat || !s.lng || !userLat) return true;
       return dist(userLat, userLng, s.lat, s.lng) <= radiusMiles;
     }).map(s => ({ ...s, distance: (s.lat && userLat) ? dist(userLat,userLng,s.lat,s.lng) : 999 }));
-    if (mapsReady && userLat && !discoveryRun) { discoveryRun = true; discoverNearbyChains(); }
-    else renderStores();
+    // Render immediately — don't wait for discovery
+    renderStores();
+    // Run discovery in background only if needed
+    if (mapsReady && userLat && !discoveryRun && shouldRunDiscovery()) {
+      discoveryRun = true;
+      setTimeout(() => discoverNearbyChains(), 100);
+    }
   } catch(e) {
     document.getElementById('loading').innerHTML = `<p style="color:#E24B4A;font-size:13px;">Error loading stores.<br><small>${e.message}</small></p>`;
   }
+}
+
+function shouldRunDiscovery() {
+  try {
+    const key = 'ph_disc_' + Math.round(userLat * 10) / 10 + '_' + Math.round(userLng * 10) / 10;
+    const last = localStorage.getItem(key);
+    if (last && Date.now() - parseInt(last) < 24 * 60 * 60 * 1000) return false;
+    localStorage.setItem(key, Date.now().toString());
+    return true;
+  } catch(e) { return true; }
 }
 
 async function discoverNearbyChains() {
@@ -644,39 +661,11 @@ async function discoverNearbyChains() {
       } catch(e) { /* search error */ }
     }
   } catch(e) { /* places not available */ }
-  // Chain price propagation
-  await propagateChainPrices();
-  renderStores();
+  // Silently update list with any newly found stores
+  if (allStores.length > 0) renderStores();
 }
 
-async function propagateChainPrices() {
-  try {
-    // Get all stores with prices from DB for same chains
-    const storesWithPrices = allStores.filter(s => s.prices && s.prices.length > 0 && s.chain && s.state);
-    const storesWithoutPrices = allStores.filter(s => (!s.prices || !s.prices.length) && s.chain && s.state);
-    if (!storesWithPrices.length || !storesWithoutPrices.length) return;
 
-    for (const emptyStore of storesWithoutPrices) {
-      const sameChainStores = storesWithPrices.filter(s => s.chain === emptyStore.chain && s.state === emptyStore.state);
-      if (!sameChainStores.length) continue;
-      // Use the most recently updated store's prices as estimates
-      const sourceStore = sameChainStores.sort((a,b) => {
-        const aDate = a.prices.reduce((max,p) => p.updated_at > max ? p.updated_at : max, '');
-        const bDate = b.prices.reduce((max,p) => p.updated_at > max ? p.updated_at : max, '');
-        return bDate.localeCompare(aDate);
-      })[0];
-      // Add estimated prices to the display (not to DB — user must confirm)
-      emptyStore.prices = sourceStore.prices.map(p => ({
-        ...p,
-        id: 'est-' + p.id,
-        store_id: emptyStore.id,
-        estimated: true,
-        source_chain: emptyStore.chain,
-        source_state: emptyStore.state
-      }));
-    }
-  } catch(e) { /* propagation error */ }
-}
 
 function getBrandName(id) { return (allBrands.find(x=>x.id===id)||{}).name||''; }
 function getBrandId(name) { return (allBrands.find(x=>x.name===name)||{}).id||null; }
@@ -989,7 +978,13 @@ function shareApp() {
 window.mapsLoaded = function() {
   mapsReady = true;
   if (currentView==='map') initMap();
-  if (userLat) { reverseGeocode(userLat,userLng); if(!discoveryRun){discoveryRun=true;discoverNearbyChains();} }
+  if (userLat) {
+    reverseGeocode(userLat,userLng);
+    if (!discoveryRun && shouldRunDiscovery()) {
+      discoveryRun = true;
+      setTimeout(() => discoverNearbyChains(), 500);
+    }
+  }
 };
 
 // INIT
