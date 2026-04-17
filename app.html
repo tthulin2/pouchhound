@@ -592,7 +592,14 @@ async function loadNearbyStores() {
   document.getElementById('loading').style.display = 'block';
   document.getElementById('store-list').style.display = 'none';
   try {
-    const stores = await sb('stores?select=*,prices(id,brand_id,shelf_price,sale_price,rewards_price,multican_qty,multican_total,multican_price_per_can,sale_multican_qty,sale_multican_total,sale_multican_price_per_can,rewards_multican_qty,rewards_multican_total,rewards_multican_price_per_can,best_price,confirmed_count,updated_at)');
+    // Load stores with prices - graceful error handling
+    let stores = [];
+    try {
+      stores = await sb('stores?select=*,prices(id,brand_id,shelf_price,sale_price,rewards_price,multican_qty,multican_total,multican_price_per_can,sale_multican_qty,sale_multican_total,sale_multican_price_per_can,rewards_multican_qty,rewards_multican_total,rewards_multican_price_per_can,best_price,confirmed_count,updated_at)');
+    } catch(e) {
+      // Fallback without sale columns if they don't exist yet
+      stores = await sb('stores?select=*,prices(id,brand_id,shelf_price,rewards_price,multican_qty,multican_total,multican_price_per_can,rewards_multican_qty,rewards_multican_total,rewards_multican_price_per_can,best_price,confirmed_count,updated_at)');
+    }
     allStores = stores.filter(s => {
       if (!s.lat || !s.lng || !userLat) return true;
       return dist(userLat, userLng, s.lat, s.lng) <= radiusMiles;
@@ -988,8 +995,17 @@ window.mapsLoaded = function() {
 };
 
 // INIT
+window.onerror = function(msg, src, line) {
+  console.error('JS Error:', msg, 'line:', line);
+  const loading = document.getElementById('loading');
+  if (loading && loading.style.display !== 'none') {
+    loading.innerHTML = '<p style="color:#E24B4A;font-size:13px;">Something went wrong loading the app.<br><small>' + msg + '</small><br><button onclick="location.reload()" style="margin-top:8px;padding:6px 12px;background:#1D9E75;color:white;border:none;border-radius:6px;cursor:pointer;">Retry</button></p>';
+  }
+};
 checkDisclaimer();
-loadBrands().then(() => requestLocation());
+loadBrands().then(() => requestLocation()).catch(e => {
+  document.getElementById('loading').innerHTML = '<p style="color:#E24B4A;font-size:13px;">Error starting app: ' + e.message + '<br><button onclick="location.reload()" style="margin-top:8px;padding:6px 12px;background:#1D9E75;color:white;border:none;border-radius:6px;cursor:pointer;">Retry</button></p>';
+});
 </script>
 <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC3zjjn8Y4a5VfgoK8CWUsJhElVSdvdfrc&libraries=places,geocoding&callback=mapsLoaded&loading=async"></script>
 </body>
