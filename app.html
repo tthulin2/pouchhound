@@ -7,7 +7,11 @@
 <meta name="description" content="Compare nicotine pouch prices at Casey's, Kwik Trip, Circle K and more. See shelf prices, rewards deals and multi-can discounts near you.">
 <meta name="theme-color" content="#1D9E75">
 <link rel="manifest" href="/manifest.json">
-<link rel="apple-touch-icon" href="/icon-192.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="192x192" href="/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="PouchHound">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
@@ -54,7 +58,7 @@ html,body { height:100%; font-family:'DM Sans',sans-serif; background:var(--surf
 .radius-custom-btn.active { background:var(--green-light); border-color:var(--green); color:var(--green-dark); }
 
 /* REPORT BAR */
-.report-bar { background:var(--green-light); border-bottom:1px solid rgba(29,158,117,0.2); padding:8px 16px; display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+.report-bar { background:var(--green-light); border-bottom:1px solid rgba(29,158,117,0.2); padding:8px 16px; flex-shrink:0; }
 .report-bar-text { font-size:12px; color:var(--green-dark); }
 .report-bar-text strong { display:block; font-size:13px; }
 .report-btn { background:var(--green); color:white; border:none; border-radius:20px; padding:7px 16px; font-size:13px; font-weight:500; font-family:'DM Sans',sans-serif; cursor:pointer; transition:background 0.2s; white-space:nowrap; }
@@ -227,11 +231,7 @@ html,body { height:100%; font-family:'DM Sans',sans-serif; background:var(--surf
   </div>
 
   <div class="report-bar">
-    <div class="report-bar-text">
-      <strong>Seen a price today?</strong>
-      Help the community — report it in seconds
-    </div>
-    <button class="report-btn" onclick="openReportModal()">Report Price</button>
+    <button class="report-btn" onclick="openReportModal()" style="width:100%;padding:10px;font-size:14px;">Report Price</button>
   </div>
 
   <div class="brand-scroll" id="brand-scroll">
@@ -619,8 +619,19 @@ async function discoverNearbyChains() {
           const chainName = normalizeChain(place.displayName);
           if (!chainName) continue;
           existing.add(place.id);
+          // Parse city and state from formatted address e.g. "123 Main St, Holdrege, NE 68949, USA"
+          let city = '', state = '', zip = '', address = place.formattedAddress||'';
+          const addrParts = address.split(',').map(s=>s.trim());
+          // Last part is usually "USA", second to last is "ST ZIPCODE"
+          if (addrParts.length >= 3) {
+            const stateZip = addrParts[addrParts.length-2] || '';
+            const stateZipMatch = stateZip.match(/^([A-Z]{2})\s*(\d{5})?$/);
+            if (stateZipMatch) { state = stateZipMatch[1]; zip = stateZipMatch[2]||''; }
+            city = addrParts[addrParts.length-3] || '';
+            address = addrParts.slice(0, addrParts.length-3).join(', ');
+          }
           try {
-            const ins = await sb('stores', { method:'POST', prefer:'return=representation', body: JSON.stringify({ name: place.displayName, chain: chainName, address: place.formattedAddress||'', city:'', state:'', zip:'', lat, lng, google_place_id: place.id }) });
+            const ins = await sb('stores', { method:'POST', prefer:'return=representation', body: JSON.stringify({ name: place.displayName, chain: chainName, address, city, state, zip, lat, lng, google_place_id: place.id }) });
             if (ins?.[0]) allStores.push({...ins[0], prices:[], distance:d});
           } catch(e) { /* duplicate */ }
         }
@@ -715,12 +726,12 @@ function renderStores() {
         const bName = getBrandName(p.brand_id);
         const bp = p.best_price;
         const pills = [];
-        if (p.shelf_price) pills.push(`<span class="pill pill-shelf">Shelf $${Number(p.shelf_price).toFixed(2)}</span>`);
-        if (p.sale_price) pills.push(`<span class="pill pill-sale">Sale $${Number(p.sale_price).toFixed(2)}</span>`);
-        if (p.rewards_price) pills.push(`<span class="pill pill-rewards">Rewards $${Number(p.rewards_price).toFixed(2)}</span>`);
+        if (p.shelf_price) pills.push(`<span class="pill pill-shelf">Shelf (single) $${Number(p.shelf_price).toFixed(2)}</span>`);
+        if (p.sale_price) pills.push(`<span class="pill pill-sale">Sale (single) $${Number(p.sale_price).toFixed(2)}</span>`);
+        if (p.rewards_price) pills.push(`<span class="pill pill-rewards">Rewards (single) $${Number(p.rewards_price).toFixed(2)}</span>`);
         if (p.multican_price_per_can) pills.push(`<span class="pill pill-multi">${p.multican_qty}-can $${Number(p.multican_price_per_can).toFixed(2)}/can</span>`);
-        if (p.sale_multican_price_per_can) pills.push(`<span class="pill pill-sale-multi">Sale ${p.sale_multican_qty}-can $${Number(p.sale_multican_price_per_can).toFixed(2)}/can</span>`);
-        if (p.rewards_multican_price_per_can) pills.push(`<span class="pill pill-combo">Rewards ${p.rewards_multican_qty}+ $${Number(p.rewards_multican_price_per_can).toFixed(2)}/can</span>`);
+        if (p.sale_multican_price_per_can) pills.push(`<span class="pill pill-sale-multi">Sale (multi-can) ${p.sale_multican_qty} $${Number(p.sale_multican_price_per_can).toFixed(2)}/can</span>`);
+        if (p.rewards_multican_price_per_can) pills.push(`<span class="pill pill-combo">Rewards (multi-can) ${p.rewards_multican_qty}+ $${Number(p.rewards_multican_price_per_can).toFixed(2)}/can</span>`);
         const shelfStr = p.shelf_price && bp < p.shelf_price ? `<span class="brand-shelf">$${Number(p.shelf_price).toFixed(2)}</span>` : '';
         const priceStr = bp && bp<999 ? `$${Number(bp).toFixed(2)}` : '–';
         const ago = p.updated_at ? timeAgo(p.updated_at) : '';
@@ -898,7 +909,7 @@ function buildPriceEntries() {
       <div class="price-tier-row"><input type="checkbox" class="tier-check" id="r-c-${brandId}" onchange="toggleTier(this,'r-${brandId}')"><div class="tier-dot" style="background:#9FE1CB;"></div><label class="tier-label" for="r-c-${brandId}">Rewards (single)</label><input type="number" class="tier-input" id="r-${brandId}" placeholder="$0.00" step="0.01" min="0" inputmode="decimal" disabled></div>
       <div class="price-tier-row"><input type="checkbox" class="tier-check" id="m-c-${brandId}" onchange="toggleTier(this,'m-${brandId}','mq-${brandId}')"><div class="tier-dot" style="background:#FAC775;"></div><label class="tier-label" for="m-c-${brandId}">Multi-can total</label><select class="qty-select" id="mq-${brandId}" disabled>${[2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}">${n} for</option>`).join('')}</select><input type="number" class="tier-input" id="m-${brandId}" placeholder="$0.00" step="0.01" min="0" inputmode="decimal" disabled></div>
       <div class="price-tier-row"><input type="checkbox" class="tier-check" id="sm-c-${brandId}" onchange="toggleTier(this,'sm-${brandId}','smq-${brandId}')"><div class="tier-dot" style="background:#C39BD3;"></div><label class="tier-label" for="sm-c-${brandId}">Sale multi-can</label><select class="qty-select" id="smq-${brandId}" disabled>${[2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}">${n} for</option>`).join('')}</select><input type="number" class="tier-input" id="sm-${brandId}" placeholder="$0.00" step="0.01" min="0" inputmode="decimal" disabled></div>
-      <div class="price-tier-row"><input type="checkbox" class="tier-check" id="rc-c-${brandId}" onchange="toggleTier(this,'rc-${brandId}','rcq-${brandId}')"><div class="tier-dot" style="background:#B5D4F4;"></div><label class="tier-label" for="rc-c-${brandId}">Rewards multi-can</label><select class="qty-select" id="rcq-${brandId}" disabled>${[2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}">${n} for</option>`).join('')}</select><input type="number" class="tier-input" id="rc-${brandId}" placeholder="$0.00" step="0.01" min="0" inputmode="decimal" disabled></div>`;
+      <div class="price-tier-row"><input type="checkbox" class="tier-check" id="rc-c-${brandId}" onchange="toggleTier(this,'rc-${brandId}','rcq-${brandId}')"><div class="tier-dot" style="background:#B5D4F4;"></div><label class="tier-label" for="rc-c-${brandId}">Rewards (multi-can)</label><select class="qty-select" id="rcq-${brandId}" disabled>${[2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}">${n} for</option>`).join('')}</select><input type="number" class="tier-input" id="rc-${brandId}" placeholder="$0.00" step="0.01" min="0" inputmode="decimal" disabled></div>`;
     c.appendChild(block);
   });
 }
