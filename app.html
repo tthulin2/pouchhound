@@ -1256,6 +1256,8 @@ async function detectAndFlagPriceChange(report, existingPrice) {
   if (!oldBest) { console.log('bail: no oldBest'); return false; }
   try {
     const store = allStores.find(s => String(s.id) === String(report.store_id));
+    console.log('report.store_id:', report.store_id, typeof report.store_id);
+    console.log('allStores IDs sample:', allStores.slice(0,3).map(s => s.id + ' (' + typeof s.id + ')'));
     console.log('store:', store ? store.name : 'NOT FOUND', 'chain:', store?.chain, 'state:', store?.state);
     if (!store || !store.chain) return false;
     let storeState = store.state;
