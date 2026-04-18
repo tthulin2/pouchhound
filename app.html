@@ -1049,19 +1049,25 @@ async function submitPrices() {
   }
   if (!reports.length) { btn.disabled=false; btn.textContent='Enter at least one price'; return; }
   try {
-    await sb('prices?on_conflict=store_id,brand_id', { method:'POST', prefer:'return=minimal,resolution=merge-duplicates', body:JSON.stringify(reports) });
-    sessionReportsCount += reports.length;
-    // Check for price increases and flag chain stores
+    // Fetch existing prices BEFORE upserting so we can detect increases
+    const existingPrices = {};
     for (const report of reports) {
       try {
-        // Fetch existing price directly from DB to ensure we have current data
-        const existing = await sb('prices?store_id=eq.' + report.store_id + '&brand_id=eq.' + report.brand_id + '&select=best_price,shelf_price,updated_at&limit=1');
+        const existing = await sb('prices?store_id=eq.' + report.store_id + '&brand_id=eq.' + report.brand_id + '&select=best_price,shelf_price&limit=1');
+        if (existing && existing.length > 0) existingPrices[report.brand_id] = existing[0];
+      } catch(e) {}
+    }
+    // Now upsert
+    await sb('prices?on_conflict=store_id,brand_id', { method:'POST', prefer:'return=minimal,resolution=merge-duplicates', body:JSON.stringify(reports) });
+    sessionReportsCount += reports.length;
+    // Check for price increases using pre-fetched prices
+    for (const report of reports) {
+      try {
+        const existing = existingPrices[report.brand_id];
         console.log('Price change check - existing:', existing, 'new shelf:', report.shelf_price);
-        if (existing && existing.length > 0) {
-          const flagged = await detectAndFlagPriceChange(report, existing[0]);
+        if (existing) {
+          const flagged = await detectAndFlagPriceChange(report, existing);
           console.log('Flagged:', flagged);
-        } else {
-          console.log('No existing price found for store/brand combination');
         }
       } catch(e) { console.error('Price change detection error:', e); }
     }
