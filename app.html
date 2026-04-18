@@ -1053,16 +1053,19 @@ async function submitPrices() {
   try {
     await sb('prices?on_conflict=store_id,brand_id', { method:'POST', prefer:'return=minimal,resolution=merge-duplicates', body:JSON.stringify(reports) });
     sessionReportsCount += reports.length;
-    // Check for price increases and flag chain stores BEFORE closing modal
+    // Check for price increases and flag chain stores
     for (const report of reports) {
-      const existingStore = allStores.find(s => s.id === report.store_id);
-      if (existingStore) {
-        const existingPrice = (existingStore.prices||[]).find(p => p.brand_id === report.brand_id);
-        if (existingPrice) {
-          const flagged = await detectAndFlagPriceChange(report, existingPrice);
-          console.log('Price change detection:', report.brand_id, 'flagged:', flagged, 'newBest:', report.shelf_price||report.rewards_price, 'oldBest:', existingPrice.best_price);
+      try {
+        // Fetch existing price directly from DB to ensure we have current data
+        const existing = await sb('prices?store_id=eq.' + report.store_id + '&brand_id=eq.' + report.brand_id + '&select=best_price,shelf_price,updated_at&limit=1');
+        console.log('Price change check - existing:', existing, 'new shelf:', report.shelf_price);
+        if (existing && existing.length > 0) {
+          const flagged = await detectAndFlagPriceChange(report, existing[0]);
+          console.log('Flagged:', flagged);
+        } else {
+          console.log('No existing price found for store/brand combination');
         }
-      }
+      } catch(e) { console.error('Price change detection error:', e); }
     }
     document.getElementById('success-msg').style.display='block';
     setTimeout(()=>{ closeReportModal(); discoveryRun=false; loadNearbyStores(); }, 1800);
