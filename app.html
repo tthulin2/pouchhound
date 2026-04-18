@@ -322,7 +322,7 @@ html,body { height:100%; font-family:'DM Sans',sans-serif; background:var(--surf
     <h3>Add a Store</h3>
     <div class="add-store-field">
       <label>Store Name *</label>
-      <input type="text" id="new-store-name" placeholder="e.g. Casey's General Store" oninput="searchPlacesForStore(this.value)" autocomplete="off">
+      <div style="display:flex;gap:6px;"><input type="text" id="new-store-name" placeholder="e.g. Casey's General Store" autocomplete="off" onkeydown="if(event.key==='Enter')searchPlacesForStore(document.getElementById('new-store-name').value)" style="flex:1;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:'DM Sans',sans-serif;outline:none;"><button onclick="searchPlacesForStore(document.getElementById('new-store-name').value)" style="padding:9px 14px;background:var(--green);color:white;border:none;border-radius:8px;font-size:13px;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;white-space:nowrap;">Search</button></div>
     </div>
     <div id="place-suggestions" style="display:none;border:1px solid var(--border);border-radius:8px;margin-top:4px;overflow:hidden;max-height:200px;overflow-y:auto;"></div>
     <div id="selected-place-display" style="display:none;background:var(--green-light);border-radius:8px;padding:8px 12px;margin-top:6px;font-size:12px;color:var(--green-dark);"></div>
@@ -402,9 +402,13 @@ html,body { height:100%; font-family:'DM Sans',sans-serif; background:var(--surf
         <div style="font-size:12px;font-weight:600;color:var(--green-dark);margin-bottom:6px;">🚀 Coming soon</div>
         <div style="font-size:12px;color:var(--text-mid);line-height:1.6;">User accounts · Reporting history · Price drop alerts · Favorite stores · Badges for top contributors</div>
       </div>
-      <a href="mailto:contact@pouchhound.com?subject=PouchHound%20Bug%20Report&body=Describe%20the%20issue%20here..." style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:10px;font-size:13px;color:var(--text-mid);text-decoration:none;font-weight:500;">
-        🐛 Report a bug
-      </a>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;">
+        <div style="font-size:13px;font-weight:500;color:var(--text-mid);margin-bottom:8px;">🐛 Report a bug</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">Email us at:</div>
+        <button onclick="copyBugEmail(this)" style="background:var(--green-light);border:1px solid var(--green);border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;color:var(--green-dark);cursor:pointer;font-family:'DM Sans',sans-serif;width:100%;">
+          contact@pouchhound.com — tap to copy
+        </button>
+      </div>
     </div>
   </div>
 </div>
@@ -779,8 +783,8 @@ function renderStores() {
 
     card.innerHTML = `<div class="store-card-header"><div><div class="store-name">${store.name}</div><div class="store-meta">${[distStr,addrStr].filter(Boolean).join(' · ')}</div></div>${isFirst?'<div class="best-badge">Best price</div>':''}</div>${brandsHTML}${rewardsHTML}`;
     card.onclick = (e) => {
-      // Don't navigate to map if clicking buttons or links
-      if (e.target.tagName === 'BUTTON' || e.target.tagName === 'A' || e.target.tagName === 'SPAN') return;
+      // Don't navigate to map if clicking interactive elements
+      if (e.target.closest('button') || e.target.closest('a')) return;
       focusStoreOnMap(store);
     };
     list.appendChild(card);
@@ -1021,7 +1025,7 @@ function toggleBrandForReport(btn) {
 
 function buildPriceEntries() {
   const c = document.getElementById('price-entries');
-  c.innerHTML = '';
+  c.innerHTML = selectedBrandsForReport.size > 0 ? '<div style="background:#FFF8E1;border:1px solid #FFE082;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:#7B5800;display:flex;align-items:center;gap:6px;"><span style="font-size:14px;">⚠️</span><strong>Enter shelf prices as shown on tag — before tax</strong></div>' : '';
   selectedBrandsForReport.forEach(brandId => {
     const brand = allBrands.find(b=>b.id===brandId); if(!brand) return;
     const block = document.createElement('div');
@@ -1245,6 +1249,22 @@ async function detectAndFlagPriceChange(report, existingPrice) {
     }
     return true;
   } catch(e) { return false; }
+}
+
+function copyBugEmail(btn) {
+  navigator.clipboard.writeText('contact@pouchhound.com').then(() => {
+    const orig = btn.textContent;
+    btn.textContent = '✓ Copied!';
+    btn.style.background = 'var(--green)';
+    btn.style.color = 'white';
+    setTimeout(() => {
+      btn.textContent = orig;
+      btn.style.background = 'var(--green-light)';
+      btn.style.color = 'var(--green-dark)';
+    }, 2000);
+  }).catch(() => {
+    alert('Email: contact@pouchhound.com');
+  });
 }
 
 window.mapsLoaded = function() {
