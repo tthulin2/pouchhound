@@ -353,7 +353,7 @@ html,body { height:100%; font-family:'DM Sans',sans-serif; background:var(--surf
     <div class="disclaimer-text">
       <div style="display:flex;align-items:flex-start;gap:8px;">
         <span style="font-size:14px;">💡</span>
-        <div style="font-size:12px;color:var(--text-mid);line-height:1.5;">Type a store name and tap <strong>Search</strong> — select your store from the list. Don't see it? Use the <strong>+ Can't find your store?</strong> button below to add it.</div>
+        <div style="font-size:14px;color:var(--text-mid);line-height:1.6;">Type a store name and tap <strong>Search</strong> — select your store from the list. Don't see it? Use the <strong>+ Can't find your store?</strong> button below to add it.</div>
       </div>
     </div>
 
@@ -1268,10 +1268,23 @@ async function detectAndFlagPriceChange(report, existingPrice) {
     const chainStores = await sb('stores?chain=eq.' + encodeURIComponent(store.chain) + '&state=eq.' + storeState + '&select=id');
     for (const cs of chainStores) {
       if (cs.id === report.store_id) continue; // skip the reporting store
-      await sb('prices?store_id=eq.' + cs.id + '&brand_id=eq.' + parseInt(report.brand_id), {
-        method: 'PATCH', prefer: 'return=minimal',
-        body: JSON.stringify({ pending_price: report.shelf_price, price_change_flagged: true, price_change_reported_at: new Date().toISOString() })
-      });
+      // Check if a price row exists for this store/brand
+      try {
+        const existing = await sb('prices?store_id=eq.' + cs.id + '&brand_id=eq.' + parseInt(report.brand_id) + '&select=id&limit=1');
+        if (existing && existing.length > 0) {
+          // Row exists - PATCH it
+          await sb('prices?store_id=eq.' + cs.id + '&brand_id=eq.' + parseInt(report.brand_id), {
+            method: 'PATCH', prefer: 'return=minimal',
+            body: JSON.stringify({ pending_price: report.shelf_price, price_change_flagged: true, price_change_reported_at: new Date().toISOString() })
+          });
+        } else {
+          // No row exists - INSERT with flag
+          await sb('prices', {
+            method: 'POST', prefer: 'return=minimal',
+            body: JSON.stringify({ store_id: cs.id, brand_id: parseInt(report.brand_id), shelf_price: report.shelf_price, pending_price: report.shelf_price, price_change_flagged: true, price_change_reported_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+          });
+        }
+      } catch(e) { console.error('Flag error for store', cs.id, e.message); }
     }
     return true;
   } catch(e) { return false; }
