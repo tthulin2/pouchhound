@@ -1158,28 +1158,9 @@ async function submitPrices() {
   }
   if (!reports.length) { btn.disabled=false; btn.textContent='Enter at least one price'; return; }
   try {
-    // Fetch existing prices BEFORE upserting so we can detect increases
-    const existingPrices = {};
-    for (const report of reports) {
-      try {
-        const existing = await sb('prices?store_id=eq.' + report.store_id + '&brand_id=eq.' + report.brand_id + '&select=best_price,shelf_price&limit=1');
-        if (existing && existing.length > 0) existingPrices[report.brand_id] = existing[0];
-      } catch(e) {}
-    }
-    // Now upsert
     await sb('prices?on_conflict=store_id,brand_id', { method:'POST', prefer:'return=minimal,resolution=merge-duplicates', body:JSON.stringify(reports) });
     sessionReportsCount += reports.length;
-    // Check for price increases using pre-fetched prices
-    for (const report of reports) {
-      try {
-        const existing = existingPrices[report.brand_id];
-        console.log('Price change check - existing:', existing, 'new shelf:', report.shelf_price);
-        if (existing) {
-          const flagged = await detectAndFlagPriceChange(report, existing);
-          console.log('Flagged:', flagged);
-        }
-      } catch(e) { console.error('Price change detection error:', e); }
-    }
+
     document.getElementById('success-msg').style.display='block';
     setTimeout(()=>{ closeReportModal(); discoveryRun=false; loadNearbyStores(); }, 1800);
   } catch(e) {
@@ -1247,51 +1228,6 @@ async function confirmPriceChange(storeId, brandId, confirmNew, pendingPrice) {
   } catch(e) { console.error('confirmPriceChange error:', e); showToast('Error updating price — try again'); }
 }
 
-async function detectAndFlagPriceChange(report, existingPrice) {
-  const newBest = report.shelf_price || report.rewards_price || null;
-  const oldBest = existingPrice ? (existingPrice.best_price || existingPrice.shelf_price) : null;
-  console.log('detectAndFlag: newBest=', newBest, 'oldBest=', oldBest);
-  if (!newBest) { console.log('bail: no newBest'); return false; }
-  if (oldBest && newBest <= oldBest) { console.log('bail: not higher'); return false; }
-  if (!oldBest) { console.log('bail: no oldBest'); return false; }
-  try {
-    const store = allStores.find(s => String(s.id) === String(report.store_id));
-    console.log('report.store_id:', report.store_id, typeof report.store_id);
-    console.log('allStores IDs sample:', allStores.slice(0,3).map(s => s.id + ' (' + typeof s.id + ')'));
-    console.log('store:', store ? store.name : 'NOT FOUND', 'chain:', store?.chain, 'state:', store?.state);
-    if (!store || !store.chain) return false;
-    let storeState = store.state;
-    if (!storeState && store.address) {
-      const m = store.address.match(/,\s*([A-Z]{2})\s+\d{5}/);
-      if (m) storeState = m[1];
-    }
-    console.log('storeState:', storeState);
-    if (!storeState) { console.log('bail: no storeState'); return false; }
-    const chainStores = await sb('stores?chain=eq.' + encodeURIComponent(store.chain) + '&state=eq.' + storeState + '&select=id');
-    console.log('chainStores found:', chainStores.length, chainStores);
-    for (const cs of chainStores) {
-      if (cs.id === report.store_id) continue; // skip the reporting store
-      // Check if a price row exists for this store/brand
-      try {
-        const existing = await sb('prices?store_id=eq.' + cs.id + '&brand_id=eq.' + parseInt(report.brand_id) + '&select=id&limit=1');
-        if (existing && existing.length > 0) {
-          // Row exists - PATCH it
-          await sb('prices?store_id=eq.' + cs.id + '&brand_id=eq.' + parseInt(report.brand_id), {
-            method: 'PATCH', prefer: 'return=minimal',
-            body: JSON.stringify({ pending_price: report.shelf_price, price_change_flagged: true, price_change_reported_at: new Date().toISOString() })
-          });
-        } else {
-          // No row exists - INSERT with flag
-          await sb('prices', {
-            method: 'POST', prefer: 'return=minimal',
-            body: JSON.stringify({ store_id: cs.id, brand_id: parseInt(report.brand_id), shelf_price: report.shelf_price, pending_price: report.shelf_price, price_change_flagged: true, price_change_reported_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-          });
-        }
-      } catch(e) { console.error('Flag error for store', cs.id, e.message); }
-    }
-    return true;
-  } catch(e) { return false; }
-}
 
 function showToast(msg) {
   const t = document.getElementById('toast');
