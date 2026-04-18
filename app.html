@@ -766,18 +766,20 @@ function renderStores() {
             '<button class="confirm-old-btn" onclick="event.stopPropagation();confirmPriceChange(\'' + store.id + '\',\'' + p.brand_id + '\',false,' + (p.pending_price||0) + ')">No, same</button>' +
             '</div></div>';
         }
-        brandsHTML += `<div class="brand-row">
-          <div class="brand-row-top"><span class="brand-name">${bName}</span><div class="brand-best">${shelfStr}<span class="${bp&&bp<999?'brand-price':'brand-price no-deal'}">${priceStr}/can</span></div></div>
-          <div class="pills">${pills.join('')}</div>
-          ${ago?`<div class="confirm-row"><span class="cdot"></span><span class="cdot"></span><span class="cdot"></span>${p.confirmed_count>0?`Confirmed by ${p.confirmed_count} · `:''}${ago}</div>`:''}
-        </div>${brandWarning}`;
+        const confirmRow = ago ? '<div class="confirm-row"><span class="cdot"></span><span class="cdot"></span><span class="cdot"></span>' + (p.confirmed_count>0 ? 'Confirmed by '+p.confirmed_count+' · ' : '') + ago + '</div>' : '';
+        const priceClass = bp&&bp<999 ? 'brand-price' : 'brand-price no-deal';
+        brandsHTML += '<div class="brand-row">' +
+          '<div class="brand-row-top"><span class="brand-name">' + bName + '</span><div class="brand-best">' + shelfStr + '<span class="' + priceClass + '">' + priceStr + '/can</span></div></div>' +
+          '<div class="pills">' + pills.join('') + '</div>' +
+          confirmRow +
+          '</div>' + brandWarning;
       });
     }
 
     const rewardsUrl = store.chain ? REWARDS_LINKS[store.chain] : null;
     const rewardsHTML = store.chain ? `<div class="rewards-strip"><div class="rewards-strip-text"><strong>${store.chain} Rewards</strong>Sign up to unlock member prices</div><a class="rewards-strip-btn" href="${rewardsUrl||'#'}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Sign up →</a></div>` : '';
 
-    card.innerHTML = `<div class="store-card-header"><div><div class="store-name">${store.name}</div><div class="store-meta">${[distStr,addrStr].filter(Boolean).join(' · ')}</div></div>${isFirst?'<div class="best-badge">Best price</div>':''}</div>${brandsHTML}${warningHTML}${rewardsHTML}`;
+    card.innerHTML = `<div class="store-card-header"><div><div class="store-name">${store.name}</div><div class="store-meta">${[distStr,addrStr].filter(Boolean).join(' · ')}</div></div>${isFirst?'<div class="best-badge">Best price</div>':''}</div>${brandsHTML}${rewardsHTML}`;
     card.onclick = () => focusStoreOnMap(store);
     list.appendChild(card);
   });
