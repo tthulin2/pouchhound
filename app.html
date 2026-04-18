@@ -1248,24 +1248,25 @@ async function confirmPriceChange(storeId, brandId, confirmNew, pendingPrice) {
 }
 
 async function detectAndFlagPriceChange(report, existingPrice) {
-  // Use best_price for comparison so any tier increase is caught
   const newBest = report.shelf_price || report.rewards_price || null;
   const oldBest = existingPrice ? (existingPrice.best_price || existingPrice.shelf_price) : null;
-  if (!newBest) return false;
-  if (oldBest && newBest <= oldBest) return false;
-  if (!oldBest) return false; // no existing price to compare against
-  // New price is higher - flag all same chain+state stores
+  console.log('detectAndFlag: newBest=', newBest, 'oldBest=', oldBest);
+  if (!newBest) { console.log('bail: no newBest'); return false; }
+  if (oldBest && newBest <= oldBest) { console.log('bail: not higher'); return false; }
+  if (!oldBest) { console.log('bail: no oldBest'); return false; }
   try {
     const store = allStores.find(s => s.id === report.store_id);
+    console.log('store:', store ? store.name : 'NOT FOUND', 'chain:', store?.chain, 'state:', store?.state);
     if (!store || !store.chain) return false;
-    // Try to get state from store, or parse from address
     let storeState = store.state;
     if (!storeState && store.address) {
       const m = store.address.match(/,\s*([A-Z]{2})\s+\d{5}/);
       if (m) storeState = m[1];
     }
-    if (!storeState) return false;
+    console.log('storeState:', storeState);
+    if (!storeState) { console.log('bail: no storeState'); return false; }
     const chainStores = await sb('stores?chain=eq.' + encodeURIComponent(store.chain) + '&state=eq.' + storeState + '&select=id');
+    console.log('chainStores found:', chainStores.length, chainStores);
     for (const cs of chainStores) {
       if (cs.id === report.store_id) continue; // skip the reporting store
       // Check if a price row exists for this store/brand
