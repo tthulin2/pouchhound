@@ -756,13 +756,16 @@ function renderStores() {
         const priceStr = bp && bp<999 ? `$${Number(bp).toFixed(2)}` : '–';
         const ago = p.updated_at ? timeAgo(p.updated_at) : '';
         // Inline price change warning for this brand
-        const brandWarning = p.price_change_flagged ? `<div class="price-change-warning">
-          <div class="warn-text">⚠️ ${bName} may be ${p.pending_price ? '$'+Number(p.pending_price).toFixed(2) : 'higher'} here — confirm?</div>
-          <div style="display:flex;gap:5px;">
-            <button class="confirm-new-btn" onclick="event.stopPropagation();confirmPriceChange('${store.id}','${p.brand_id}',true,${p.pending_price||0})">Yes, higher</button>
-            <button class="confirm-old-btn" onclick="event.stopPropagation();confirmPriceChange('${store.id}','${p.brand_id}',false,${p.pending_price||0})">No, same</button>
-          </div>
-        </div>` : '';
+        let brandWarning = '';
+        if (p.price_change_flagged) {
+          const wp = p.pending_price ? '$'+Number(p.pending_price).toFixed(2) : 'higher';
+          brandWarning = '<div class="price-change-warning">' +
+            '<div class="warn-text">⚠ ' + bName + ' may be ' + wp + ' here — confirm?</div>' +
+            '<div style="display:flex;gap:5px;">' +
+            '<button class="confirm-new-btn" onclick="event.stopPropagation();confirmPriceChange(\'' + store.id + '\',\'' + p.brand_id + '\',true,' + (p.pending_price||0) + ')">Yes, higher</button>' +
+            '<button class="confirm-old-btn" onclick="event.stopPropagation();confirmPriceChange(\'' + store.id + '\',\'' + p.brand_id + '\',false,' + (p.pending_price||0) + ')">No, same</button>' +
+            '</div></div>';
+        }
         brandsHTML += `<div class="brand-row">
           <div class="brand-row-top"><span class="brand-name">${bName}</span><div class="brand-best">${shelfStr}<span class="${bp&&bp<999?'brand-price':'brand-price no-deal'}">${priceStr}/can</span></div></div>
           <div class="pills">${pills.join('')}</div>
