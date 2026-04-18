@@ -351,7 +351,13 @@ html,body { height:100%; font-family:'DM Sans',sans-serif; background:var(--surf
     <button class="modal-close" onclick="closeReportModal()">✕</button>
     <div class="modal-title">Report Price</div>
     <div class="success-msg" id="success-msg">✓ Prices submitted! Thank you.</div>
-    <div class="disclaimer-text">Enter shelf prices as shown on the tag — before tax. By submitting you confirm these prices are accurate to the best of your knowledge. PouchHound accepts no liability for inaccurate information.</div>
+    <div class="disclaimer-text">
+      <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;">
+        <span style="font-size:14px;">💡</span>
+        <strong style="color:var(--text-mid);font-size:11px;">Enter prices as shown on the shelf tag — before tax</strong>
+      </div>
+      By submitting you confirm these prices are accurate. PouchHound accepts no liability for inaccurate information.
+    </div>
 
     <div class="form-section">
       <label class="form-label">Store</label>
@@ -1047,13 +1053,14 @@ async function submitPrices() {
   try {
     await sb('prices?on_conflict=store_id,brand_id', { method:'POST', prefer:'return=minimal,resolution=merge-duplicates', body:JSON.stringify(reports) });
     sessionReportsCount += reports.length;
-    // Check for price increases and flag chain stores
+    // Check for price increases and flag chain stores BEFORE closing modal
     for (const report of reports) {
       const existingStore = allStores.find(s => s.id === report.store_id);
       if (existingStore) {
         const existingPrice = (existingStore.prices||[]).find(p => p.brand_id === report.brand_id);
         if (existingPrice) {
-          await detectAndFlagPriceChange(report, existingPrice);
+          const flagged = await detectAndFlagPriceChange(report, existingPrice);
+          console.log('Price change detection:', report.brand_id, 'flagged:', flagged, 'newBest:', report.shelf_price||report.rewards_price, 'oldBest:', existingPrice.best_price);
         }
       }
     }
