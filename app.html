@@ -1210,7 +1210,7 @@ function shareApp() {
 
 async function confirmPriceChange(storeId, brandId, confirmNew, pendingPrice) {
   try {
-    const store = allStores.find(s => s.id === storeId);
+    const store = allStores.find(s => String(s.id) === String(storeId));
     if (!store || !store.chain) return;
     let storeState = store.state;
     if (!storeState && store.address) {
@@ -1255,7 +1255,7 @@ async function detectAndFlagPriceChange(report, existingPrice) {
   if (oldBest && newBest <= oldBest) { console.log('bail: not higher'); return false; }
   if (!oldBest) { console.log('bail: no oldBest'); return false; }
   try {
-    const store = allStores.find(s => s.id === report.store_id);
+    const store = allStores.find(s => String(s.id) === String(report.store_id));
     console.log('store:', store ? store.name : 'NOT FOUND', 'chain:', store?.chain, 'state:', store?.state);
     if (!store || !store.chain) return false;
     let storeState = store.state;
