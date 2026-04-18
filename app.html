@@ -168,6 +168,7 @@ html,body { height:100%; font-family:'DM Sans',sans-serif; background:var(--surf
 .tier-input { width:74px; padding:6px 8px; border:1px solid var(--border); border-radius:6px; font-size:13px; font-family:'DM Sans',sans-serif; outline:none; text-align:right; flex-shrink:0; }
 .tier-input:focus { border-color:var(--green); }
 .tier-input:disabled { background:var(--surface); color:var(--text-muted); }
+.pretax-tag { font-size:9px; color:var(--text-muted); background:var(--surface); border:1px solid var(--border); border-radius:4px; padding:2px 4px; white-space:nowrap; flex-shrink:0; }
 .qty-select { width:60px; padding:5px 2px; border:1px solid var(--border); border-radius:6px; font-size:12px; font-family:'DM Sans',sans-serif; outline:none; flex-shrink:0; }
 .qty-select:disabled { background:var(--surface); color:var(--text-muted); }
 .submit-btn { width:100%; padding:14px; background:var(--green); color:white; border:none; border-radius:10px; font-size:15px; font-weight:500; font-family:'DM Sans',sans-serif; cursor:pointer; transition:background 0.2s; margin-top:4px; }
@@ -321,25 +322,19 @@ html,body { height:100%; font-family:'DM Sans',sans-serif; background:var(--surf
     <h3>Add a Store</h3>
     <div class="add-store-field">
       <label>Store Name *</label>
-      <input type="text" id="new-store-name" placeholder="e.g. Casey's General Store">
+      <input type="text" id="new-store-name" placeholder="e.g. Casey's General Store" oninput="searchPlacesForStore(this.value)" autocomplete="off">
     </div>
-    <div class="add-store-field">
-      <label>Address</label>
-      <input type="text" id="new-store-address" placeholder="123 Main St">
-    </div>
-    <div style="display:flex;gap:8px;">
-      <div class="add-store-field" style="flex:2;">
-        <label>City</label>
-        <input type="text" id="new-store-city" placeholder="Holdrege">
-      </div>
-      <div class="add-store-field" style="flex:1;">
-        <label>State</label>
-        <input type="text" id="new-store-state" placeholder="NE" maxlength="2">
-      </div>
-    </div>
-    <div class="popup-row" style="margin-top:8px;">
+    <div id="place-suggestions" style="display:none;border:1px solid var(--border);border-radius:8px;margin-top:4px;overflow:hidden;max-height:200px;overflow-y:auto;"></div>
+    <div id="selected-place-display" style="display:none;background:var(--green-light);border-radius:8px;padding:8px 12px;margin-top:6px;font-size:12px;color:var(--green-dark);"></div>
+    <input type="hidden" id="new-store-address">
+    <input type="hidden" id="new-store-city">
+    <input type="hidden" id="new-store-state">
+    <input type="hidden" id="new-store-lat">
+    <input type="hidden" id="new-store-lng">
+    <input type="hidden" id="new-store-place-id">
+    <div class="popup-row" style="margin-top:12px;">
       <button class="popup-cancel" onclick="closeAddStore()">Cancel</button>
-      <button class="popup-confirm" onclick="submitNewStore()">Add Store</button>
+      <button class="popup-confirm" id="add-store-confirm-btn" onclick="submitNewStore()" disabled style="opacity:0.5;">Add Store</button>
     </div>
   </div>
 </div>
@@ -403,10 +398,13 @@ html,body { height:100%; font-family:'DM Sans',sans-serif; background:var(--surf
           <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Stores nearby</div>
         </div>
       </div>
-      <div style="background:var(--green-light);border-radius:10px;padding:16px;text-align:left;border:1px solid rgba(29,158,117,0.2);">
+      <div style="background:var(--green-light);border-radius:10px;padding:16px;text-align:left;border:1px solid rgba(29,158,117,0.2);margin-bottom:12px;">
         <div style="font-size:12px;font-weight:600;color:var(--green-dark);margin-bottom:6px;">🚀 Coming soon</div>
         <div style="font-size:12px;color:var(--text-mid);line-height:1.6;">User accounts · Reporting history · Price drop alerts · Favorite stores · Badges for top contributors</div>
       </div>
+      <a href="mailto:contact@pouchhound.com?subject=PouchHound%20Bug%20Report&body=Describe%20the%20issue%20here..." style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:10px;font-size:13px;color:var(--text-mid);text-decoration:none;font-weight:500;">
+        🐛 Report a bug
+      </a>
     </div>
   </div>
 </div>
@@ -780,7 +778,11 @@ function renderStores() {
     const rewardsHTML = store.chain ? `<div class="rewards-strip"><div class="rewards-strip-text"><strong>${store.chain} Rewards</strong>Sign up to unlock member prices</div><a class="rewards-strip-btn" href="${rewardsUrl||'#'}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Sign up →</a></div>` : '';
 
     card.innerHTML = `<div class="store-card-header"><div><div class="store-name">${store.name}</div><div class="store-meta">${[distStr,addrStr].filter(Boolean).join(' · ')}</div></div>${isFirst?'<div class="best-badge">Best price</div>':''}</div>${brandsHTML}${rewardsHTML}`;
-    card.onclick = () => focusStoreOnMap(store);
+    card.onclick = (e) => {
+      // Don't navigate to map if clicking buttons or links
+      if (e.target.tagName === 'BUTTON' || e.target.tagName === 'A' || e.target.tagName === 'SPAN') return;
+      focusStoreOnMap(store);
+    };
     list.appendChild(card);
   });
   if (currentView==='map') updateMapMarkers();
@@ -816,8 +818,21 @@ function focusStoreOnMap(store) {
   if (!store.lat || !store.lng) return;
   switchView('map');
   if (!map) { setTimeout(()=>focusStoreOnMap(store), 600); return; }
-  map.setCenter({lat:store.lat, lng:store.lng});
-  map.setZoom(16);
+  // Fit bounds to show both store and user location
+  if (userLat && userLng) {
+    const bounds = new google.maps.LatLngBounds();
+    bounds.extend({lat: store.lat, lng: store.lng});
+    bounds.extend({lat: userLat, lng: userLng});
+    map.fitBounds(bounds, {top:40, bottom:40, left:40, right:40});
+    // Don't zoom in too far
+    google.maps.event.addListenerOnce(map, 'bounds_changed', () => {
+      if (map.getZoom() > 15) map.setZoom(15);
+    });
+  } else {
+    map.setCenter({lat:store.lat, lng:store.lng});
+    map.setZoom(15);
+  }
+  // Open the info window for this store
   const marker = markers.find(m=>m.storeId===store.id);
   if (marker) google.maps.event.trigger(marker, 'click');
 }
@@ -837,7 +852,9 @@ function updateMapMarkers() {
     const relevantIds = selectedBrands.has('ALL') ? allBrands.map(b=>b.id) : [...selectedBrands].map(n=>getBrandId(n)).filter(Boolean);
     const brandLines = (store.prices||[]).filter(p=>relevantIds.includes(p.brand_id)).sort((a,b)=>(a.best_price||999)-(b.best_price||999)).slice(0,3)
       .map(p=>`<div style="display:flex;justify-content:space-between;gap:12px;font-size:12px;margin-top:3px;"><span>${getBrandName(p.brand_id)}</span><span style="color:#1D9E75;font-weight:600;">${p.best_price<999?'$'+Number(p.best_price).toFixed(2)+'/can':'–'}</span></div>`).join('');
-    const info = new google.maps.InfoWindow({ content:`<div style="font-family:'DM Sans',sans-serif;padding:4px 2px;min-width:160px;"><strong style="font-size:13px;color:#0E1A16;">${store.name}</strong>${store.distance<999?`<div style="font-size:11px;color:#7A9488;">${store.distance.toFixed(1)} mi away</div>`:''}${brandLines||'<div style="font-size:12px;color:#7A9488;margin-top:4px;">No prices yet</div>'}</div>` });
+    const dirUrl = 'https://maps.google.com/?daddr=' + store.lat + ',' + store.lng;
+    const dirLink = '<a href="' + dirUrl + '" target="_blank" style="display:inline-block;margin-top:6px;font-size:11px;font-weight:600;color:#1D9E75;text-decoration:none;">🧭 Get directions →</a>';
+    const info = new google.maps.InfoWindow({ content:'<div style="font-family:DM Sans,sans-serif;padding:4px 2px;min-width:160px;"><strong style="font-size:13px;color:#0E1A16;">' + store.name + '</strong>' + (store.distance<999?'<div style="font-size:11px;color:#7A9488;">' + store.distance.toFixed(1) + ' mi away</div>':'') + (brandLines||'<div style="font-size:12px;color:#7A9488;margin-top:4px;">No prices yet</div>') + dirLink + '</div>' });
     marker.addListener('click', ()=>{ markers.forEach(m=>{if(m.infoWindow)m.infoWindow.close();}); info.open(map,marker); });
     marker.infoWindow = info;
     markers.push(marker);
@@ -875,27 +892,100 @@ function openProfileModal() {
 }
 
 // ADD STORE
+let selectedPlaceData = null;
+
 function openAddStore() {
-  document.getElementById('new-store-name').value = document.getElementById('store-search').value || '';
-  document.getElementById('new-store-address').value = '';
-  document.getElementById('new-store-city').value = '';
-  document.getElementById('new-store-state').value = '';
+  const searchVal = document.getElementById('store-search').value || '';
+  document.getElementById('new-store-name').value = searchVal;
+  document.getElementById('place-suggestions').style.display = 'none';
+  document.getElementById('selected-place-display').style.display = 'none';
+  document.getElementById('add-store-confirm-btn').disabled = true;
+  document.getElementById('add-store-confirm-btn').style.opacity = '0.5';
+  selectedPlaceData = null;
   document.getElementById('add-store-popup').classList.add('open');
-  setTimeout(()=>document.getElementById('new-store-name').focus(), 150);
+  setTimeout(() => {
+    const inp = document.getElementById('new-store-name');
+    inp.focus();
+    if (searchVal) searchPlacesForStore(searchVal);
+  }, 200);
 }
-function closeAddStore() { document.getElementById('add-store-popup').classList.remove('open'); }
+
+function closeAddStore() {
+  document.getElementById('add-store-popup').classList.remove('open');
+  selectedPlaceData = null;
+}
+
+async function searchPlacesForStore(query) {
+  const sugEl = document.getElementById('place-suggestions');
+  if (!query || query.length < 2) { sugEl.style.display = 'none'; return; }
+  if (!mapsReady || !google.maps.places?.Place) {
+    sugEl.style.display = 'none'; return;
+  }
+  try {
+    const { places } = await google.maps.places.Place.searchByText({
+      fields: ['id','displayName','formattedAddress','location'],
+      textQuery: query,
+      locationBias: userLat ? new google.maps.Circle({ center:{lat:userLat,lng:userLng}, radius:50000 }) : undefined,
+      maxResultCount: 6
+    });
+    if (!places || !places.length) { sugEl.style.display = 'none'; return; }
+    // Sort by distance from user
+    const sorted = places.map(p => {
+      const lat = p.location.lat(), lng = p.location.lng();
+      const d = userLat ? dist(userLat, userLng, lat, lng) : 999;
+      return { place: p, d };
+    }).sort((a,b) => a.d - b.d);
+    sugEl.innerHTML = sorted.map(({place, d}) =>
+      '<div class="store-result-item" onclick="selectPlaceForStore(' + "'" + place.id + "','" +
+      place.displayName.replace(/'/g,"\'") + "','" +
+      (place.formattedAddress||'').replace(/'/g,"\'") + "'," +
+      place.location.lat() + ',' + place.location.lng() + ')">' +
+      '<strong>' + place.displayName + '</strong>' +
+      (d < 999 ? ' <span style="font-size:11px;color:var(--green);font-weight:500;">' + d.toFixed(1) + ' mi</span>' : '') +
+      '<br><span style="font-size:11px;color:#7A9488;">' + (place.formattedAddress||'') + '</span>' +
+      '</div>'
+    ).join('');
+    sugEl.style.display = 'block';
+  } catch(e) { sugEl.style.display = 'none'; }
+}
+
+function selectPlaceForStore(placeId, name, address, lat, lng) {
+  // Parse city and state from address
+  let city = '', state = '', cleanAddr = address;
+  const parts = address.split(',').map(s => s.trim());
+  if (parts.length >= 3) {
+    const stateZip = parts[parts.length-2] || '';
+    const m = stateZip.match(/^([A-Z]{2})\s*(\d{5})?$/);
+    if (m) { state = m[1]; }
+    city = parts[parts.length-3] || '';
+    cleanAddr = parts.slice(0, parts.length-3).join(', ');
+  }
+  selectedPlaceData = { name, address: cleanAddr, city, state, lat, lng, google_place_id: placeId };
+  document.getElementById('new-store-name').value = name;
+  document.getElementById('place-suggestions').style.display = 'none';
+  const display = document.getElementById('selected-place-display');
+  display.innerHTML = '<strong>' + name + '</strong><br><span style="font-size:11px;opacity:0.8;">' + address + '</span>';
+  display.style.display = 'block';
+  const btn = document.getElementById('add-store-confirm-btn');
+  btn.disabled = false;
+  btn.style.opacity = '1';
+}
+
 async function submitNewStore() {
   const name = document.getElementById('new-store-name').value.trim();
   if (!name) { alert('Store name is required'); return; }
-  const address = document.getElementById('new-store-address').value.trim();
-  const city = document.getElementById('new-store-city').value.trim();
-  const state = document.getElementById('new-store-state').value.trim().toUpperCase();
-  const chainName = normalizeChain(name);
+  let storeData;
+  if (selectedPlaceData) {
+    const chainName = normalizeChain(selectedPlaceData.name);
+    storeData = { ...selectedPlaceData, chain: chainName };
+  } else {
+    storeData = { name, chain: normalizeChain(name), address: '', city: '', state: '' };
+  }
   try {
-    const ins = await sb('stores', { method:'POST', prefer:'return=representation', body: JSON.stringify({ name, chain: chainName, address, city, state }) });
+    const ins = await sb('stores', { method:'POST', prefer:'return=representation', body: JSON.stringify(storeData) });
     if (ins?.[0]) {
-      allStores.push({...ins[0], prices:[], distance:999});
-      selectStore(ins[0].id, name, [address,city,state].filter(Boolean).join(', '));
+      allStores.push({...ins[0], prices:[], distance: selectedPlaceData ? dist(userLat,userLng,selectedPlaceData.lat,selectedPlaceData.lng) : 999});
+      selectStore(ins[0].id, storeData.name, [storeData.address, storeData.city, storeData.state].filter(Boolean).join(', '));
       closeAddStore();
     }
   } catch(e) { alert('Error adding store: '+e.message); }
