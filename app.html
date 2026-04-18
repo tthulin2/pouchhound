@@ -611,10 +611,10 @@ async function loadNearbyStores() {
     // Load stores with prices - graceful error handling
     let stores = [];
     try {
-      stores = await sb('stores?select=*,prices(id,brand_id,shelf_price,sale_price,rewards_price,multican_qty,multican_total,multican_price_per_can,sale_multican_qty,sale_multican_total,sale_multican_price_per_can,rewards_multican_qty,rewards_multican_total,rewards_multican_price_per_can,best_price,confirmed_count,updated_at,price_change_flagged,pending_price)');
+      stores = await sb('stores?select=*,prices(id,brand_id,shelf_price,sale_price,rewards_price,multican_qty,multican_total,multican_price_per_can,sale_multican_qty,sale_multican_total,sale_multican_price_per_can,rewards_multican_qty,rewards_multican_total,rewards_multican_price_per_can,best_price,confirmed_count,updated_at,price_change_flagged,pending_price,price_change_direction)');
     } catch(e) {
       // Fallback without sale columns if they don't exist yet
-      stores = await sb('stores?select=*,prices(id,brand_id,shelf_price,rewards_price,multican_qty,multican_total,multican_price_per_can,rewards_multican_qty,rewards_multican_total,rewards_multican_price_per_can,best_price,confirmed_count,updated_at,price_change_flagged,pending_price)');
+      stores = await sb('stores?select=*,prices(id,brand_id,shelf_price,rewards_price,multican_qty,multican_total,multican_price_per_can,rewards_multican_qty,rewards_multican_total,rewards_multican_price_per_can,best_price,confirmed_count,updated_at,price_change_flagged,pending_price,price_change_direction)');
     }
     allStores = stores.filter(s => {
       if (!s.lat || !s.lng || !userLat) return true;
@@ -763,13 +763,16 @@ function renderStores() {
         // Inline price change warning for this brand
         let brandWarning = '';
         if (p.price_change_flagged) {
-          const wp = p.pending_price ? '$'+Number(p.pending_price).toFixed(2) : 'higher';
+          const wp = p.pending_price ? '$'+Number(p.pending_price).toFixed(2) : '?';
+          const direction = p.price_change_direction || 'up';
+          const dirWord = direction === 'down' ? 'lower' : 'higher';
+          const dirArrow = direction === 'down' ? '↓' : '↑';
           const warningId = 'warn-' + store.id + '-' + p.brand_id;
           brandWarning = '<div class="price-change-warning" id="' + warningId + '">' +
-            '<div class="warn-text">⚠ ' + bName + ' may be ' + wp + ' here</div>' +
+            '<div class="warn-text">' + dirArrow + ' ' + bName + ' may be ' + dirWord + ' (' + wp + ') here</div>' +
             '<div style="display:flex;gap:5px;">' +
-            '<button class="confirm-new-btn" data-store="' + store.id + '" data-brand="' + p.brand_id + '" data-price="' + (p.pending_price||0) + '" data-action="new">Yes, higher</button>' +
-            '<button class="confirm-old-btn" data-store="' + store.id + '" data-brand="' + p.brand_id + '" data-price="' + (p.pending_price||0) + '" data-action="old">No, same</button>' +
+            '<button class="confirm-new-btn" data-store="' + store.id + '" data-brand="' + p.brand_id + '" data-price="' + (p.pending_price||0) + '" data-direction="' + (p.price_change_direction||'up') + '">Yes, ' + dirWord + '</button>' +
+            '<button class="confirm-old-btn" data-store="' + store.id + '" data-brand="' + p.brand_id + '" data-price="' + (p.pending_price||0) + '" data-direction="' + (p.price_change_direction||'up') + '">No, same</button>' +
             '</div></div>';
         }
         const confirmRow = ago ? '<div class="confirm-row"><span class="cdot"></span><span class="cdot"></span><span class="cdot"></span>' + (p.confirmed_count>0 ? 'Confirmed by '+p.confirmed_count+' · ' : '') + ago + '</div>' : '';
@@ -802,8 +805,9 @@ function renderStores() {
     const storeId = btn.dataset.store;
     const brandId = btn.dataset.brand;
     const price = parseFloat(btn.dataset.price);
+    const direction = btn.dataset.direction || 'up';
     const confirmNew = btn.classList.contains('confirm-new-btn');
-    confirmPriceChange(storeId, brandId, confirmNew, price);
+    confirmPriceChange(storeId, brandId, confirmNew, price, direction);
   }, { once: true });
 }
 
@@ -1189,7 +1193,7 @@ function shareApp() {
   }
 }
 
-async function confirmPriceChange(storeId, brandId, confirmNew, pendingPrice) {
+async function confirmPriceChange(storeId, brandId, confirmNew, pendingPrice, direction) {
   try {
     const store = allStores.find(s => String(s.id) === String(storeId));
     if (!store || !store.chain) return;
@@ -1199,32 +1203,29 @@ async function confirmPriceChange(storeId, brandId, confirmNew, pendingPrice) {
       if (m) storeState = m[1];
     }
     if (!storeState) return;
+    const chainStores = await sb('stores?chain=eq.' + encodeURIComponent(store.chain) + '&state=eq.' + storeState + '&select=id');
+    const dirWord = (direction === 'down') ? 'lower' : 'higher';
     if (confirmNew) {
-      // New higher price confirmed - update all chain stores in state
-      const chainStores = await sb('stores?chain=eq.' + encodeURIComponent(store.chain) + '&state=eq.' + storeState + '&select=id');
+      // Confirmed new price - update shelf price and clear flag for all chain stores
       for (const cs of chainStores) {
         await sb('prices?store_id=eq.' + cs.id + '&brand_id=eq.' + brandId, {
           method: 'PATCH', prefer: 'return=minimal',
-          body: JSON.stringify({ shelf_price: pendingPrice, pending_price: null, price_change_flagged: false, price_change_reported_at: null, updated_at: new Date().toISOString() })
+          body: JSON.stringify({ shelf_price: pendingPrice, pending_price: null, price_change_flagged: false, price_change_direction: null, price_change_reported_at: null, updated_at: new Date().toISOString() })
         });
       }
+      showToast('✓ Thanks! Price confirmed ' + dirWord + ' for all ' + store.chain + ' in ' + storeState);
     } else {
-      // Old lower price confirmed - clear warning for all chain stores in state
-      const chainStores = await sb('stores?chain=eq.' + encodeURIComponent(store.chain) + '&state=eq.' + storeState + '&select=id');
+      // Confirmed old price still same - just clear the flag for all chain stores
       for (const cs of chainStores) {
         await sb('prices?store_id=eq.' + cs.id + '&brand_id=eq.' + brandId, {
           method: 'PATCH', prefer: 'return=minimal',
-          body: JSON.stringify({ pending_price: null, price_change_flagged: false, price_change_reported_at: null })
+          body: JSON.stringify({ pending_price: null, price_change_flagged: false, price_change_direction: null, price_change_reported_at: null })
         });
       }
+      showToast('✓ Thanks! Price confirmed unchanged for all ' + store.chain + ' in ' + storeState);
     }
     discoveryRun = false;
     loadNearbyStores();
-    if (confirmNew) {
-      showToast('✓ Thanks! New price updated for all ' + store.chain + ' in ' + storeState);
-    } else {
-      showToast('✓ Thanks! Original price confirmed — restored for all ' + store.chain + ' in ' + storeState);
-    }
   } catch(e) { console.error('confirmPriceChange error:', e); showToast('Error updating price — try again'); }
 }
 
