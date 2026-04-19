@@ -1166,14 +1166,19 @@ async function submitPrices() {
     for (const report of reports) {
       try {
         const existing = await sb('prices?store_id=eq.' + report.store_id + '&brand_id=eq.' + report.brand_id + '&select=id&limit=1');
+        // Build update body without store_id and brand_id (filter-only columns)
+        const { store_id, brand_id, ...updateFields } = report;
+        updateFields.updated_at = new Date().toISOString();
         if (existing && existing.length > 0) {
           // Row exists - use PATCH so the UPDATE trigger fires
-          await sb('prices?store_id=eq.' + report.store_id + '&brand_id=eq.' + report.brand_id, {
+          const result = await sb('prices?store_id=eq.' + store_id + '&brand_id=eq.' + brand_id, {
             method: 'PATCH', prefer: 'return=minimal',
-            body: JSON.stringify({ ...report, updated_at: new Date().toISOString() })
+            body: JSON.stringify(updateFields)
           });
+          console.log('PATCH result:', result);
         } else {
           // New row - use POST
+          console.log('POST new price for brand', brand_id);
           await sb('prices', { method: 'POST', prefer: 'return=minimal', body: JSON.stringify(report) });
         }
       } catch(e) { console.error('Submit error for brand', report.brand_id, e.message); }
