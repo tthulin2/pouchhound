@@ -1165,16 +1165,15 @@ async function submitPrices() {
     // Use PATCH for existing rows (fires trigger) and POST for new rows
     for (const report of reports) {
       try {
-        const existing = await sb('prices?store_id=eq.' + report.store_id + '&brand_id=eq.' + report.brand_id + '&select=id&limit=1');
+        const existing = await sb('prices?store_id=eq.' + report.store_id + '&brand_id=eq.' + parseInt(report.brand_id) + '&select=id&limit=1');
         // Build update body without store_id and brand_id (filter-only columns)
         const { store_id, brand_id, ...updateFields } = report;
         updateFields.updated_at = new Date().toISOString();
         if (existing && existing.length > 0) {
           // Row exists - use PATCH so the UPDATE trigger fires
-          const sid = parseInt(store_id) || store_id;
-          const bid = parseInt(brand_id) || brand_id;
-          console.log('PATCHing store_id:', sid, 'brand_id:', bid, 'fields:', updateFields);
-          const result = await sb('prices?store_id=eq.' + sid + '&brand_id=eq.' + bid, {
+          const bid = parseInt(brand_id);
+          console.log('PATCHing store_id:', store_id, 'brand_id:', bid, 'fields:', updateFields);
+          const result = await sb('prices?store_id=eq.' + store_id + '&brand_id=eq.' + bid, {
             method: 'PATCH', prefer: 'return=minimal',
             body: JSON.stringify(updateFields)
           });
