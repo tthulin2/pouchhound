@@ -1162,22 +1162,43 @@ async function submitPrices() {
   }
   if (!reports.length) { btn.disabled=false; btn.textContent='Enter at least one price'; return; }
   try {
-    // Use PATCH for existing rows (fires trigger) and POST for new rows
+    // Fetch store chain/state once for chain flagging
+    const reportStore = allStores.find(s => String(s.id) === String(selectedStoreId));
+    let reportStoreState = reportStore?.state;
+    if (!reportStoreState && reportStore?.address) {
+      const m = reportStore.address.match(/,\s*([A-Z]{2})\s+\d{5}/);
+      if (m) reportStoreState = m[1];
+    }
+
+    // Use PATCH for existing rows, POST for new rows, then flag chain stores if shelf price changed
     for (const report of reports) {
       try {
-        const existing = await sb('prices?store_id=eq.' + report.store_id + '&brand_id=eq.' + parseInt(report.brand_id) + '&select=id&limit=1');
+        const existing = await sb('prices?store_id=eq.' + report.store_id + '&brand_id=eq.' + parseInt(report.brand_id) + '&select=id,shelf_price&limit=1');
         // Build update body without store_id and brand_id (filter-only columns)
         const { store_id, brand_id, ...updateFields } = report;
         updateFields.updated_at = new Date().toISOString();
+        const bid = parseInt(brand_id);
         if (existing && existing.length > 0) {
-          // Row exists - use PATCH so the UPDATE trigger fires
-          const bid = parseInt(brand_id);
+          const oldShelfPrice = existing[0].shelf_price;
           console.log('PATCHing store_id:', store_id, 'brand_id:', bid, 'fields:', updateFields);
-          const result = await sb('prices?store_id=eq.' + store_id + '&brand_id=eq.' + bid, {
+          await sb('prices?store_id=eq.' + store_id + '&brand_id=eq.' + bid, {
             method: 'PATCH', prefer: 'return=minimal',
             body: JSON.stringify(updateFields)
           });
-          console.log('PATCH result:', result);
+          // If shelf price changed, flag other chain stores in same state
+          if (report.shelf_price !== null && oldShelfPrice !== null && report.shelf_price !== oldShelfPrice
+              && reportStore?.chain && reportStoreState) {
+            const direction = report.shelf_price > oldShelfPrice ? 'up' : 'down';
+            const chainStores = await sb('stores?chain=eq.' + encodeURIComponent(reportStore.chain) + '&state=eq.' + reportStoreState + '&select=id');
+            for (const cs of chainStores) {
+              if (String(cs.id) === String(store_id)) continue;
+              await sb('prices?store_id=eq.' + cs.id + '&brand_id=eq.' + bid, {
+                method: 'PATCH', prefer: 'return=minimal',
+                body: JSON.stringify({ price_change_flagged: true, pending_price: report.shelf_price, price_change_direction: direction, price_change_reported_at: new Date().toISOString() })
+              });
+            }
+            console.log('Flagged chain stores for price change:', direction, report.shelf_price);
+          }
         } else {
           // New row - use POST
           console.log('POST new price for brand', brand_id);
