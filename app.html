@@ -819,8 +819,8 @@ function renderStores() {
           expiredWarnings += '<div class="price-change-warning" style="background:#FFF3E0;border-color:#FFCC80;">' +
             '<div class="warn-text">⚠ ' + bName + ' ' + ec.label + ' may have ended</div>' +
             '<div style="display:flex;gap:5px;">' +
-            '<button class="confirm-expired-btn" data-store="' + store.id + '" data-brand="' + p.brand_id + '" data-flag="' + ec.flag + '" data-field="' + ec.field + '" onclick="event.stopPropagation()">Yes, expired</button>' +
-            '<button class="deny-expired-btn" data-store="' + store.id + '" data-brand="' + p.brand_id + '" data-flag="' + ec.flag + '" onclick="event.stopPropagation()">No, still active</button>' +
+            '<button class="confirm-expired-btn" onclick="event.stopPropagation();handleExpiredConfirm(\''+store.id+'\','+p.brand_id+',\''+ec.flag+'\',\''+ec.field+'\',true)">Yes, expired</button>' +
+            '<button class="deny-expired-btn" onclick="event.stopPropagation();handleExpiredConfirm(\''+store.id+'\','+p.brand_id+',\''+ec.flag+'\',\''+ec.field+'\',false)">No, still active</button>' +
             '</div></div>';
         }
         brandsHTML += '<div class="brand-row">' +
