@@ -1171,7 +1171,10 @@ async function submitPrices() {
         updateFields.updated_at = new Date().toISOString();
         if (existing && existing.length > 0) {
           // Row exists - use PATCH so the UPDATE trigger fires
-          const result = await sb('prices?store_id=eq.' + store_id + '&brand_id=eq.' + brand_id, {
+          const sid = parseInt(store_id) || store_id;
+          const bid = parseInt(brand_id) || brand_id;
+          console.log('PATCHing store_id:', sid, 'brand_id:', bid, 'fields:', updateFields);
+          const result = await sb('prices?store_id=eq.' + sid + '&brand_id=eq.' + bid, {
             method: 'PATCH', prefer: 'return=minimal',
             body: JSON.stringify(updateFields)
           });
