@@ -844,7 +844,16 @@ function renderStores() {
     list.appendChild(card);
   });
   if (currentView==='map') updateMapMarkers();
-  // Attach delegated click handler for price warning and expired deal buttons
+}
+
+function timeAgo(ts) {
+  const d=Math.floor((Date.now()-new Date(ts))/1000);
+  if(d<60) return 'just now'; if(d<3600) return `${Math.floor(d/60)}m ago`;
+  if(d<86400) return `${Math.floor(d/3600)}h ago`; return `${Math.floor(d/86400)}d ago`;
+}
+
+// Delegated click handler for all store card buttons — attached once at init
+document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('store-list').addEventListener('click', function(e) {
     const btn = e.target.closest('.confirm-new-btn, .confirm-old-btn, .confirm-expired-btn, .deny-expired-btn');
     if (!btn) return;
@@ -860,14 +869,8 @@ function renderStores() {
     const confirmNew = btn.classList.contains('confirm-new-btn');
     const category = btn.dataset.category || null;
     confirmPriceChange(storeId, brandId, confirmNew, price, direction, category);
-  }, { once: true });
-}
-
-function timeAgo(ts) {
-  const d=Math.floor((Date.now()-new Date(ts))/1000);
-  if(d<60) return 'just now'; if(d<3600) return `${Math.floor(d/60)}m ago`;
-  if(d<86400) return `${Math.floor(d/3600)}h ago`; return `${Math.floor(d/86400)}d ago`;
-}
+  });
+});
 
 function switchView(view) {
   currentView = view;
