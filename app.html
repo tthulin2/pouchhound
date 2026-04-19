@@ -597,19 +597,17 @@ function useDefaultLocation() {
   loadNearbyStores();
 }
 
-async function reverseGeocode(lat, lng) {
-  if (!mapsReady) { document.getElementById('loc-text').textContent = 'Near your location'; return; }
-  try {
-    const gc = new google.maps.Geocoder();
-    gc.geocode({location:{lat,lng}}, (results, status) => {
-      if (status === 'OK' && results[0]) {
-        const comp = results[0].address_components;
-        const city = comp.find(c=>c.types.includes('locality'));
-        const state = comp.find(c=>c.types.includes('administrative_area_level_1'));
-        document.getElementById('loc-text').textContent = (city && state) ? `Near ${city.long_name}, ${state.short_name}` : 'Near your location';
-      }
-    });
-  } catch(e) { document.getElementById('loc-text').textContent = 'Near your location'; }
+function reverseGeocode(lat, lng) {
+  // Use nearest store's address to get city/state instead of calling Geocoding API
+  if (allStores && allStores.length > 0) {
+    const nearest = allStores.filter(s => s.address).sort((a,b) => (a.distance||999)-(b.distance||999))[0];
+    if (nearest && nearest.address) {
+      const m = nearest.address.match(/,\s*([^,]+),\s*([A-Z]{2})\s+\d{5}/);
+      if (m) { document.getElementById('loc-text').textContent = `Near ${m[1].trim()}, ${m[2]}`; return; }
+    }
+  }
+  // Fallback: extract from state if available
+  document.getElementById('loc-text').textContent = 'Near your location';
 }
 
 function dist(lat1,lng1,lat2,lng2) {
@@ -636,6 +634,8 @@ async function loadNearbyStores() {
     }).map(s => ({ ...s, distance: (s.lat && userLat) ? dist(userLat,userLng,s.lat,s.lng) : 999 }));
     // Render immediately — don't wait for discovery
     renderStores();
+    // Update location label from nearest store (avoids Geocoding API call)
+    if (userLat) reverseGeocode(userLat, userLng);
     // Run discovery in background only if needed
     if (mapsReady && userLat && !discoveryRun && shouldRunDiscovery()) {
       discoveryRun = true;
