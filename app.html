@@ -1162,7 +1162,22 @@ async function submitPrices() {
   }
   if (!reports.length) { btn.disabled=false; btn.textContent='Enter at least one price'; return; }
   try {
-    await sb('prices?on_conflict=store_id,brand_id', { method:'POST', prefer:'return=minimal,resolution=merge-duplicates', body:JSON.stringify(reports) });
+    // Use PATCH for existing rows (fires trigger) and POST for new rows
+    for (const report of reports) {
+      try {
+        const existing = await sb('prices?store_id=eq.' + report.store_id + '&brand_id=eq.' + report.brand_id + '&select=id&limit=1');
+        if (existing && existing.length > 0) {
+          // Row exists - use PATCH so the UPDATE trigger fires
+          await sb('prices?store_id=eq.' + report.store_id + '&brand_id=eq.' + report.brand_id, {
+            method: 'PATCH', prefer: 'return=minimal',
+            body: JSON.stringify({ ...report, updated_at: new Date().toISOString() })
+          });
+        } else {
+          // New row - use POST
+          await sb('prices', { method: 'POST', prefer: 'return=minimal', body: JSON.stringify(report) });
+        }
+      } catch(e) { console.error('Submit error for brand', report.brand_id, e.message); }
+    }
     sessionReportsCount += reports.length;
 
     document.getElementById('success-msg').style.display='block';
