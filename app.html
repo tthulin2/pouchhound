@@ -96,6 +96,8 @@ html,body { height:100%; font-family:'DM Sans',sans-serif; background:var(--surf
 .price-change-warning .warn-text { display:flex; align-items:center; gap:5px; }
 .confirm-new-btn { font-size:11px; font-weight:600; color:#7B5800; background:#FFE082; border:none; border-radius:6px; padding:4px 8px; cursor:pointer; white-space:nowrap; }
 .confirm-old-btn { font-size:11px; font-weight:600; color:var(--green-dark); background:var(--green-light); border:none; border-radius:6px; padding:4px 8px; cursor:pointer; white-space:nowrap; }
+.confirm-expired-btn { font-size:11px; font-weight:600; color:#7B5800; background:#FFCC80; border:none; border-radius:6px; padding:4px 8px; cursor:pointer; white-space:nowrap; }
+.deny-expired-btn { font-size:11px; font-weight:600; color:var(--green-dark); background:var(--green-light); border:none; border-radius:6px; padding:4px 8px; cursor:pointer; white-space:nowrap; }
 .price-dimmed { opacity:0.45; }
 .toast { position:fixed; bottom:80px; left:50%; transform:translateX(-50%); background:#0E1A16; color:white; padding:10px 20px; border-radius:20px; font-size:13px; font-weight:500; z-index:500; opacity:0; transition:opacity 0.3s; pointer-events:none; white-space:nowrap; }
 .toast.show { opacity:1; }
@@ -416,6 +418,18 @@ html,body { height:100%; font-family:'DM Sans',sans-serif; background:var(--surf
   </div>
 </div>
 
+<div class="modal-overlay" id="expired-modal" onclick="if(event.target===this)closeExpiredModal()">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <button class="modal-close" onclick="closeExpiredModal()">✕</button>
+    <div class="modal-title">Report Expired Deal</div>
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">Select which deals are no longer active. A second user will confirm before they're removed.</div>
+    <div id="expired-deal-list" style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px;"></div>
+    <button id="expired-submit-btn" onclick="submitExpiredDeals()" style="width:100%;padding:14px;background:var(--green);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">Flag Selected as Expired</button>
+  </div>
+</div>
+
+
 <script>
 const SUPABASE_URL = 'https://xgngjwjnyemgfblbqxqj.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhnbmdqd2pueWVtZ2ZibGJxeHFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzNjk3NDUsImV4cCI6MjA5MTk0NTc0NX0.TjSdMpDewqYe9AoECIRwMie0d2UoiaJbHfXX_NeM8dw';
@@ -611,7 +625,7 @@ async function loadNearbyStores() {
     // Load stores with prices - graceful error handling
     let stores = [];
     try {
-      stores = await sb('stores?select=*,prices(id,brand_id,shelf_price,sale_price,rewards_price,multican_qty,multican_total,multican_price_per_can,sale_multican_qty,sale_multican_total,sale_multican_price_per_can,rewards_multican_qty,rewards_multican_total,rewards_multican_price_per_can,best_price,confirmed_count,updated_at,price_change_flagged,pending_price,price_change_direction,shelf_change_flagged,pending_shelf_price,shelf_change_direction,sale_change_flagged,pending_sale_price,sale_change_direction,rewards_change_flagged,pending_rewards_price,rewards_change_direction,multican_change_flagged,pending_multican_price,multican_change_direction,sale_multican_change_flagged,pending_sale_multican_price,sale_multican_change_direction,rewards_multican_change_flagged,pending_rewards_multican_price,rewards_multican_change_direction,price_change_reported_at)');
+      stores = await sb('stores?select=*,prices(id,brand_id,shelf_price,sale_price,rewards_price,multican_qty,multican_total,multican_price_per_can,sale_multican_qty,sale_multican_total,sale_multican_price_per_can,rewards_multican_qty,rewards_multican_total,rewards_multican_price_per_can,best_price,confirmed_count,updated_at,price_change_flagged,pending_price,price_change_direction,shelf_change_flagged,pending_shelf_price,shelf_change_direction,sale_change_flagged,pending_sale_price,sale_change_direction,rewards_change_flagged,pending_rewards_price,rewards_change_direction,multican_change_flagged,pending_multican_price,multican_change_direction,sale_multican_change_flagged,pending_sale_multican_price,sale_multican_change_direction,rewards_multican_change_flagged,pending_rewards_multican_price,rewards_multican_change_direction,price_change_reported_at,sale_expired_flagged,rewards_expired_flagged,multican_expired_flagged,sale_multican_expired_flagged,rewards_multican_expired_flagged)');
     } catch(e) {
       // Fallback without sale columns if they don't exist yet
       stores = await sb('stores?select=*,prices(id,brand_id,shelf_price,rewards_price,multican_qty,multican_total,multican_price_per_can,rewards_multican_qty,rewards_multican_total,rewards_multican_price_per_can,best_price,confirmed_count,updated_at,price_change_flagged,pending_price,price_change_direction)');
@@ -788,11 +802,33 @@ function renderStores() {
         }
         const confirmRow = ago ? '<div class="confirm-row"><span class="cdot"></span><span class="cdot"></span><span class="cdot"></span>' + (p.confirmed_count>0 ? 'Confirmed by '+p.confirmed_count+' · ' : '') + ago + '</div>' : '';
         const priceClass = bp&&bp<999 ? 'brand-price' : 'brand-price no-deal';
+        // Show "Report expired deal" button if any deal tiers exist
+        const hasDeals = p.sale_price || p.rewards_price || p.multican_total || p.sale_multican_total || p.rewards_multican_total;
+        const expiredBtn = hasDeals ? '<div style="margin-top:4px;"><button class="report-expired-btn" data-store="' + store.id + '" data-brand="' + p.brand_id + '" data-storename="' + store.name.replace(/"/g,'&quot;') + '" onclick="event.stopPropagation();openExpiredModal(this)" style="background:none;border:none;font-size:11px;color:var(--text-muted);cursor:pointer;padding:0;text-decoration:underline;">Report expired deal</button></div>' : '';
+        // Show expired confirmation banners
+        const EXPIRED_CATS = [
+          { flag: 'sale_expired_flagged',           field: 'sale_price',           label: 'Sale (single)' },
+          { flag: 'rewards_expired_flagged',        field: 'rewards_price',        label: 'Rewards (single)' },
+          { flag: 'multican_expired_flagged',       field: 'multican_total',       label: 'Multi-can deal' },
+          { flag: 'sale_multican_expired_flagged',  field: 'sale_multican_total',  label: 'Sale multi-can deal' },
+          { flag: 'rewards_multican_expired_flagged',field:'rewards_multican_total',label: 'Rewards multi-can deal' },
+        ];
+        let expiredWarnings = '';
+        for (const ec of EXPIRED_CATS) {
+          if (!p[ec.flag] || !p[ec.field]) continue;
+          expiredWarnings += '<div class="price-change-warning" style="background:#FFF3E0;border-color:#FFCC80;">' +
+            '<div class="warn-text">⚠ ' + bName + ' ' + ec.label + ' may have ended</div>' +
+            '<div style="display:flex;gap:5px;">' +
+            '<button class="confirm-expired-btn" data-store="' + store.id + '" data-brand="' + p.brand_id + '" data-flag="' + ec.flag + '" data-field="' + ec.field + '" onclick="event.stopPropagation()">Yes, expired</button>' +
+            '<button class="deny-expired-btn" data-store="' + store.id + '" data-brand="' + p.brand_id + '" data-flag="' + ec.flag + '" onclick="event.stopPropagation()">No, still active</button>' +
+            '</div></div>';
+        }
         brandsHTML += '<div class="brand-row">' +
           '<div class="brand-row-top"><span class="brand-name">' + bName + '</span><div class="brand-best">' + shelfStr + '<span class="' + priceClass + '">' + priceStr + '/can</span></div></div>' +
           '<div class="pills">' + pills.join('') + '</div>' +
+          expiredBtn +
           confirmRow +
-          '</div>' + brandWarning;
+          '</div>' + brandWarning + expiredWarnings;
       });
     }
 
@@ -808,11 +844,15 @@ function renderStores() {
     list.appendChild(card);
   });
   if (currentView==='map') updateMapMarkers();
-  // Attach delegated click handler for price warning buttons
+  // Attach delegated click handler for price warning and expired deal buttons
   document.getElementById('store-list').addEventListener('click', function(e) {
-    const btn = e.target.closest('.confirm-new-btn, .confirm-old-btn');
+    const btn = e.target.closest('.confirm-new-btn, .confirm-old-btn, .confirm-expired-btn, .deny-expired-btn');
     if (!btn) return;
     e.stopPropagation();
+    if (btn.classList.contains('confirm-expired-btn') || btn.classList.contains('deny-expired-btn')) {
+      handleExpiredConfirm(btn.dataset.store, btn.dataset.brand, btn.dataset.flag, btn.dataset.field, btn.classList.contains('confirm-expired-btn'));
+      return;
+    }
     const storeId = btn.dataset.store;
     const brandId = btn.dataset.brand;
     const price = parseFloat(btn.dataset.price);
@@ -1170,7 +1210,7 @@ async function submitPrices() {
     const rmcQty = get(`rc-c-${brandId}`)?.checked ? parseInt(get(`rcq-${brandId}`)?.value)||null : null;
     const rmcTotal = get(`rc-c-${brandId}`)?.checked ? parseFloat(get(`rc-${brandId}`)?.value)||null : null;
     if (!shelf&&!sale&&!rew&&!mcTotal&&!smTotal&&!rmcTotal) continue;
-    reports.push({ store_id:selectedStoreId, brand_id:brandId, shelf_price:shelf, sale_price:sale, rewards_price:rew, multican_qty:mcQty, multican_total:mcTotal, sale_multican_qty:smQty, sale_multican_total:smTotal, rewards_multican_qty:rmcQty, rewards_multican_total:rmcTotal, updated_at:new Date().toISOString() });
+    reports.push({ store_id:selectedStoreId, brand_id:brandId, shelf_price:shelf, sale_price:sale, rewards_price:rew, multican_qty:mcQty, multican_total:mcTotal, sale_multican_qty:smQty, sale_multican_total:smTotal, rewards_multican_qty:rmcQty, rewards_multican_total:rmcTotal, updated_at:new Date().toISOString() }); // best_price, multican_price_per_can etc are generated columns - never send them
   }
   if (!reports.length) { btn.disabled=false; btn.textContent='Enter at least one price'; return; }
   try {
@@ -1322,6 +1362,121 @@ async function confirmPriceChange(storeId, brandId, confirmNew, pendingPrice, di
   } catch(e) { console.error('confirmPriceChange error:', e); showToast('Error updating price — try again'); }
 }
 
+
+// Expired deal state
+let expiredModalStoreId = null;
+let expiredModalBrandId = null;
+let expiredModalPrices = null;
+
+const EXPIRED_DEAL_CATS = [
+  { flag: 'sale_expired_flagged',            field: 'sale_price',            label: 'Sale (single)',           displayVal: p => p.sale_price ? '$'+Number(p.sale_price).toFixed(2) : null },
+  { flag: 'rewards_expired_flagged',         field: 'rewards_price',         label: 'Rewards (single)',        displayVal: p => p.rewards_price ? '$'+Number(p.rewards_price).toFixed(2) : null },
+  { flag: 'multican_expired_flagged',        field: 'multican_total',        label: 'Multi-can deal',          displayVal: p => p.multican_total ? p.multican_qty+'-can $'+Number(p.multican_total).toFixed(2) : null },
+  { flag: 'sale_multican_expired_flagged',   field: 'sale_multican_total',   label: 'Sale multi-can deal',     displayVal: p => p.sale_multican_total ? p.sale_multican_qty+'-can $'+Number(p.sale_multican_total).toFixed(2) : null },
+  { flag: 'rewards_multican_expired_flagged',field: 'rewards_multican_total',label: 'Rewards multi-can deal',  displayVal: p => p.rewards_multican_total ? p.rewards_multican_qty+'-can $'+Number(p.rewards_multican_total).toFixed(2) : null },
+];
+
+function openExpiredModal(btn) {
+  expiredModalStoreId = btn.dataset.store;
+  expiredModalBrandId = parseInt(btn.dataset.brand);
+  const store = allStores.find(s => String(s.id) === String(expiredModalStoreId));
+  expiredModalPrices = store?.prices?.find(p => p.brand_id === expiredModalBrandId) || null;
+  if (!expiredModalPrices) return;
+  const brandName = getBrandName(expiredModalBrandId);
+  const list = document.getElementById('expired-deal-list');
+  list.innerHTML = '';
+  let hasAny = false;
+  for (const cat of EXPIRED_DEAL_CATS) {
+    const val = expiredModalPrices[cat.field];
+    if (!val) continue;
+    hasAny = true;
+    const displayStr = cat.displayVal(expiredModalPrices) || '$'+Number(val).toFixed(2);
+    list.innerHTML += '<label style="display:flex;align-items:center;gap:10px;background:var(--surface);border-radius:10px;padding:12px;cursor:pointer;">' +
+      '<input type="checkbox" name="expired-cat" value="' + cat.flag + '" data-field="' + cat.field + '" style="width:18px;height:18px;accent-color:var(--green);">' +
+      '<div><div style="font-size:13px;font-weight:600;color:var(--text);">' + brandName + ' — ' + cat.label + '</div>' +
+      '<div style="font-size:12px;color:var(--text-muted);">' + displayStr + '</div></div>' +
+      '</label>';
+  }
+  if (!hasAny) return;
+  document.getElementById('expired-modal').classList.add('open');
+}
+
+function closeExpiredModal() {
+  document.getElementById('expired-modal').classList.remove('open');
+  expiredModalStoreId = null;
+  expiredModalBrandId = null;
+  expiredModalPrices = null;
+}
+
+async function submitExpiredDeals() {
+  const checked = [...document.querySelectorAll('input[name="expired-cat"]:checked')];
+  if (!checked.length) { showToast('Select at least one deal to flag'); return; }
+  const btn = document.getElementById('expired-submit-btn');
+  btn.disabled = true; btn.textContent = 'Flagging...';
+  try {
+    const store = allStores.find(s => String(s.id) === String(expiredModalStoreId));
+    let storeState = store?.state;
+    if (!storeState && store?.address) {
+      const m = store.address.match(/,\s*([A-Z]{2})\s+\d{5}/);
+      if (m) storeState = m[1];
+    }
+    const flagUpdate = {};
+    for (const cb of checked) flagUpdate[cb.value] = true;
+    // Flag all same-chain same-state stores
+    if (store?.chain && storeState) {
+      const chainStores = await sb('stores?chain=eq.' + encodeURIComponent(store.chain) + '&state=eq.' + storeState + '&select=id');
+      for (const cs of chainStores) {
+        await sb('prices?store_id=eq.' + cs.id + '&brand_id=eq.' + expiredModalBrandId, {
+          method: 'PATCH', prefer: 'return=minimal',
+          body: JSON.stringify(flagUpdate)
+        });
+      }
+    }
+    showToast('✓ Flagged — a second user will confirm');
+    closeExpiredModal();
+    discoveryRun = false;
+    loadNearbyStores();
+  } catch(e) {
+    console.error('submitExpiredDeals error:', e);
+    showToast('Error — try again');
+    btn.disabled = false; btn.textContent = 'Flag Selected as Expired';
+  }
+}
+
+async function handleExpiredConfirm(storeId, brandId, flag, field, confirmExpired) {
+  try {
+    const store = allStores.find(s => String(s.id) === String(storeId));
+    let storeState = store?.state;
+    if (!storeState && store?.address) {
+      const m = store.address.match(/,\s*([A-Z]{2})\s+\d{5}/);
+      if (m) storeState = m[1];
+    }
+    const chainStores = store?.chain && storeState
+      ? await sb('stores?chain=eq.' + encodeURIComponent(store.chain) + '&state=eq.' + storeState + '&select=id')
+      : [{ id: storeId }];
+    if (confirmExpired) {
+      // Null out the price field and clear flag for all chain stores
+      for (const cs of chainStores) {
+        await sb('prices?store_id=eq.' + cs.id + '&brand_id=eq.' + brandId, {
+          method: 'PATCH', prefer: 'return=minimal',
+          body: JSON.stringify({ [field]: null, [flag]: false })
+        });
+      }
+      showToast('✓ Deal removed for all ' + (store?.chain||'') + ' in ' + (storeState||'this state'));
+    } else {
+      // Just clear the flag for all chain stores
+      for (const cs of chainStores) {
+        await sb('prices?store_id=eq.' + cs.id + '&brand_id=eq.' + brandId, {
+          method: 'PATCH', prefer: 'return=minimal',
+          body: JSON.stringify({ [flag]: false })
+        });
+      }
+      showToast('✓ Deal confirmed still active');
+    }
+    discoveryRun = false;
+    loadNearbyStores();
+  } catch(e) { console.error('handleExpiredConfirm error:', e); showToast('Error — try again'); }
+}
 
 function showToast(msg) {
   const t = document.getElementById('toast');
