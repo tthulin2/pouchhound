@@ -764,7 +764,11 @@ function renderStores() {
         let brandWarning = '';
         if (p.price_change_flagged) {
           const wp = p.pending_price ? '$'+Number(p.pending_price).toFixed(2) : '?';
-          const direction = p.price_change_direction || 'up';
+          // Recalculate direction relative to THIS store's current shelf price
+          let direction = p.price_change_direction || 'up';
+          if (p.pending_price !== null && p.shelf_price !== null) {
+            direction = p.pending_price < p.shelf_price ? 'down' : 'up';
+          }
           const dirWord = direction === 'down' ? 'lower' : 'higher';
           const dirArrow = direction === 'down' ? '↓' : '↑';
           const warningId = 'warn-' + store.id + '-' + p.brand_id;
