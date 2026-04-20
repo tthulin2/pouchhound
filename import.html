@@ -214,6 +214,68 @@ async function fetchOSM(btn, chainName, brandName) {
   way["name"="Casey's"][bbox=24,-125,50,-65];
 );
 out center;`;
+  } else if (chainName === "QuikTrip") {
+    query = `[out:json][timeout:250];
+(
+  node["brand"="QuikTrip"][bbox=24,-125,50,-65];
+  node["brand"="Quik Trip"][bbox=24,-125,50,-65];
+  node["name"="QuikTrip"]["amenity"~"fuel|convenience"][bbox=24,-125,50,-65];
+  node["name"="QT"]["amenity"~"fuel|convenience"][bbox=24,-125,50,-65];
+  way["brand"="QuikTrip"][bbox=24,-125,50,-65];
+  way["brand"="Quik Trip"][bbox=24,-125,50,-65];
+  way["name"="QuikTrip"]["amenity"~"fuel|convenience"][bbox=24,-125,50,-65];
+);
+out center;`;
+  } else if (chainName === "Pilot Flying J") {
+    query = `[out:json][timeout:250];
+(
+  node["brand"="Pilot Flying J"][bbox=24,-125,50,-65];
+  node["brand"="Pilot Travel Centers"][bbox=24,-125,50,-65];
+  node["name"="Pilot Flying J"][bbox=24,-125,50,-65];
+  node["name"="Flying J"][bbox=24,-125,50,-65];
+  way["brand"="Pilot Flying J"][bbox=24,-125,50,-65];
+  way["brand"="Pilot Travel Centers"][bbox=24,-125,50,-65];
+  way["name"="Pilot Flying J"][bbox=24,-125,50,-65];
+);
+out center;`;
+  } else if (chainName === "Love's") {
+    query = `[out:json][timeout:250];
+(
+  node["brand"="Love's Travel Stops"][bbox=24,-125,50,-65];
+  node["brand"="Love's"][bbox=24,-125,50,-65];
+  node["name"="Love's Travel Stop"][bbox=24,-125,50,-65];
+  way["brand"="Love's Travel Stops"][bbox=24,-125,50,-65];
+  way["brand"="Love's"][bbox=24,-125,50,-65];
+  way["name"="Love's Travel Stop"][bbox=24,-125,50,-65];
+);
+out center;`;
+  } else if (chainName === "Sheetz") {
+    query = `[out:json][timeout:250];
+(
+  node["brand"="Sheetz"][bbox=24,-125,50,-65];
+  node["name"="Sheetz"]["amenity"~"fuel|convenience"][bbox=24,-125,50,-65];
+  way["brand"="Sheetz"][bbox=24,-125,50,-65];
+  way["name"="Sheetz"]["amenity"~"fuel|convenience"][bbox=24,-125,50,-65];
+);
+out center;`;
+  } else if (chainName === "Maverik") {
+    query = `[out:json][timeout:250];
+(
+  node["brand"="Maverik"][bbox=24,-125,50,-65];
+  node["name"="Maverik"]["amenity"~"fuel|convenience"][bbox=24,-125,50,-65];
+  way["brand"="Maverik"][bbox=24,-125,50,-65];
+  way["name"="Maverik"]["amenity"~"fuel|convenience"][bbox=24,-125,50,-65];
+);
+out center;`;
+  } else if (chainName === "Pump & Pantry") {
+    query = `[out:json][timeout:250];
+(
+  node["brand"="Pump & Pantry"][bbox=24,-125,50,-65];
+  node["name"="Pump & Pantry"][bbox=24,-125,50,-65];
+  way["brand"="Pump & Pantry"][bbox=24,-125,50,-65];
+  way["name"="Pump & Pantry"][bbox=24,-125,50,-65];
+);
+out center;`;
   } else {
     query = `[out:json][timeout:250];
 (
