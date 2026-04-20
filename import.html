@@ -148,10 +148,9 @@ function loadCSV(input) {
   reader.onload = (e) => {
     const rows = parseCSV(e.target.result);
     const skipped=[]; validStores=[];
-    const BAD_NAMES = ['goodstop', 'shell', 'marathon', 'bp ', 'exxon', 'chevron', 'sunoco'];
+    const BAD_NAMES = ['goodstop','shell','marathon','exxon','chevron','sunoco'];
     // Detect CSV format — Kwik Trip style vs OSM export style
     const isOSMFormat = rows.length > 0 && 'lat' in rows[0] && 'chain' in rows[0];
-    const BAD_NAMES = ['goodstop','shell','marathon','exxon','chevron','sunoco'];
 
     for (const row of rows) {
       if (isOSMFormat) {
@@ -160,7 +159,7 @@ function loadCSV(input) {
         if (BAD_NAMES.some(b=>nameLower.includes(b))) { skipped.push(row); continue; }
         const lat = parseFloat(row['lat']), lng = parseFloat(row['lng']);
         if (isNaN(lat)||isNaN(lng)) { skipped.push(row); continue; }
-        validStores.push({ name:row['name'], chain:row['chain']||'Casey's', address:row['address']||', USA', city:row['city'], state:row['state'], zip:row['zip'], lat, lng });
+        validStores.push({ name:row['name'], chain:row['chain']||"Casey's", address:row['address']||', USA', city:row['city'], state:row['state'], zip:row['zip'], lat, lng });
       } else {
         // Kwik Trip CSV format (Store Name, Latitude, Longitude, etc.)
         const name = (row['Store Name']||'').toUpperCase();
