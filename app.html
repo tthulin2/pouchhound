@@ -271,9 +271,9 @@ html,body { height:100%; font-family:'DM Sans',sans-serif; background:var(--surf
       <div class="filter-dropdown-row"><input type="checkbox" id="ft-shelf" checked onchange="toggleTierFilter('shelf', event)"> <label for="ft-shelf" style="cursor:pointer;">Shelf (single)</label></div>
       <div class="filter-dropdown-row"><input type="checkbox" id="ft-sale" checked onchange="toggleTierFilter('sale', event)"> <label for="ft-sale" style="cursor:pointer;">Sale (single)</label></div>
       <div class="filter-dropdown-row"><input type="checkbox" id="ft-rewards" checked onchange="toggleTierFilter('rewards', event)"> <label for="ft-rewards" style="cursor:pointer;">Rewards (single)</label></div>
-      <div class="filter-dropdown-row"><input type="checkbox" id="ft-multican" checked onchange="toggleTierFilter('multican', event)"> <label for="ft-multican" style="cursor:pointer;">Multi-can</label></div>
-      <div class="filter-dropdown-row"><input type="checkbox" id="ft-sale_multican" checked onchange="toggleTierFilter('sale_multican', event)"> <label for="ft-sale_multican" style="cursor:pointer;">Sale multi-can</label></div>
-      <div class="filter-dropdown-row"><input type="checkbox" id="ft-rewards_multican" checked onchange="toggleTierFilter('rewards_multican', event)"> <label for="ft-rewards_multican" style="cursor:pointer;">Rewards multi-can</label></div>
+      <div class="filter-dropdown-row"><input type="checkbox" id="ft-multican" checked onchange="toggleTierFilter('multican', event)"> <label for="ft-multican" style="cursor:pointer;">Multi-can (single)</label></div>
+      <div class="filter-dropdown-row"><input type="checkbox" id="ft-sale_multican" checked onchange="toggleTierFilter('sale_multican', event)"> <label for="ft-sale_multican" style="cursor:pointer;">Sale (multi-can)</label></div>
+      <div class="filter-dropdown-row"><input type="checkbox" id="ft-rewards_multican" checked onchange="toggleTierFilter('rewards_multican', event)"> <label for="ft-rewards_multican" style="cursor:pointer;">Rewards (multi-can)</label></div>
     </div>
   </div>
 
@@ -907,7 +907,8 @@ function renderStores() {
         const confirmRow = ago ? '<div class="confirm-row"><span class="cdot"></span><span class="cdot"></span><span class="cdot"></span>' + (p.confirmed_count>0 ? 'Confirmed by '+p.confirmed_count+' · ' : '') + ago + '</div>' : '';
         const priceClass = bp&&bp<999 ? 'brand-price' : 'brand-price no-deal';
         // Show "Report expired deal" button if any deal tiers exist
-        const hasDeals = p.sale_price || p.rewards_price || p.multican_total || p.sale_multican_total || p.rewards_multican_total;
+        // Only show expired deal button for non-shelf tiers that are visible
+        const hasDeals = (p.sale_price && activeTiers.has('sale')) || (p.rewards_price && activeTiers.has('rewards')) || (p.multican_total && activeTiers.has('multican')) || (p.sale_multican_total && activeTiers.has('sale_multican')) || (p.rewards_multican_total && activeTiers.has('rewards_multican'));
         const expiredBtn = hasDeals ? '<div style="margin-top:4px;"><button class="report-expired-btn" data-store="' + store.id + '" data-brand="' + p.brand_id + '" data-storename="' + store.name.replace(/"/g,'&quot;') + '" onclick="event.stopPropagation();openExpiredModal(this)" style="background:none;border:none;font-size:11px;color:var(--text-muted);cursor:pointer;padding:0;text-decoration:underline;">Report expired deal</button></div>' : '';
         // Show expired confirmation banners
         const EXPIRED_CATS = [
@@ -1184,7 +1185,8 @@ async function searchStores(q) {
     results = await sb(`stores?name=ilike.*${encodeURIComponent(q)}*&limit=10`);
   }
   if (!results.length) { el.style.display='none'; return; }
-  const sorted = results.map(s => ({ ...s, d: (s.lat&&userLat) ? dist(userLat,userLng,s.lat,s.lng) : 999 })).filter(s => s.d <= Math.max(radiusMiles, 25)).sort((a,b)=>a.d-b.d);
+  const sorted = results.map(s => ({ ...s, d: (s.lat&&userLat) ? dist(userLat,userLng,s.lat,s.lng) : 999 })).filter(s => s.d <= radiusMiles).sort((a,b)=>a.d-b.d);
+  if (!sorted.length) { el.style.display='none'; return; }
   el.innerHTML = sorted.map(s=>`<div class="store-result-item" onclick="selectStore('${s.id}','${s.name.replace(/'/g,"\\'")}','${([s.address,s.city,s.state].filter(Boolean).join(', ')).replace(/'/g,"\\'")}')"><strong>${s.name}</strong>${s.d<999?` <span style="font-size:11px;color:var(--green);font-weight:500;">${s.d.toFixed(1)} mi</span>`:''}<br><span style="font-size:11px;color:#7A9488;">${[s.address,s.city,s.state].filter(Boolean).join(', ')}</span></div>`).join('');
   el.style.display = 'block';
 }
@@ -1365,25 +1367,41 @@ async function submitPrices() {
               const oldVal = oldRow[cat.old];
               return newVal != null && oldVal != null && parseFloat(newVal) !== parseFloat(oldVal);
             });
+            const newTierCategories = PRICE_CATEGORIES.filter(cat => {
+              const newVal = report[cat.report];
+              const oldVal = oldRow[cat.old];
+              return newVal != null && (oldVal == null);
+            });
+            // Flag stores where price changed
             if (changedCategories.length > 0) {
-              // Build the flag update object
               const flagUpdate = {};
               for (const cat of changedCategories) {
                 const newVal = parseFloat(report[cat.report]);
                 flagUpdate[cat.flag] = true;
                 flagUpdate[cat.pending] = newVal;
-                flagUpdate[cat.dir] = 'up'; // direction determined per-store in DB function
+                flagUpdate[cat.dir] = 'up';
               }
-              // Single RPC call flags all chain stores at once
               await sb('rpc/flag_chain_price_changes', {
                 method: 'POST',
-                body: JSON.stringify({
-                  p_store_id: store_id,
-                  p_brand_id: bid,
-                  p_updates: flagUpdate
-                })
+                body: JSON.stringify({ p_store_id: store_id, p_brand_id: bid, p_updates: flagUpdate })
               });
-              console.log('Flagged chain stores via RPC for categories:', changedCategories.map(c => c.report));
+              console.log('Flagged chain stores for changed categories:', changedCategories.map(c => c.report));
+            }
+            // Propagate new tiers to chain stores that don't have them yet
+            if (newTierCategories.length > 0) {
+              const tierUpdate = {};
+              for (const cat of newTierCategories) {
+                tierUpdate[cat.report] = report[cat.report];
+              }
+              // Also include qty fields for multican
+              if (report.multican_qty && newTierCategories.find(c => c.report === 'multican_total')) tierUpdate.multican_qty = report.multican_qty;
+              if (report.sale_multican_qty && newTierCategories.find(c => c.report === 'sale_multican_total')) tierUpdate.sale_multican_qty = report.sale_multican_qty;
+              if (report.rewards_multican_qty && newTierCategories.find(c => c.report === 'rewards_multican_total')) tierUpdate.rewards_multican_qty = report.rewards_multican_qty;
+              await sb('rpc/propagate_new_price_tiers', {
+                method: 'POST',
+                body: JSON.stringify({ p_store_id: store_id, p_brand_id: bid, p_updates: tierUpdate })
+              });
+              console.log('Propagated new tiers to chain stores:', newTierCategories.map(c => c.report));
             }
           }
         } else {
