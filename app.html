@@ -826,7 +826,7 @@ function renderStores() {
     }
 
     const rewardsUrl = (store.chain && REWARDS_LINKS[store.chain]) ? REWARDS_LINKS[store.chain] : null;
-    const rewardsHTML = store.chain ? `<div class="rewards-strip"><div class="rewards-strip-text"><strong>${store.chain} Rewards</strong>Sign up to unlock member prices</div><a class="rewards-strip-btn" href="${rewardsUrl||'#'}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Sign up →</a></div>` : '';
+    const rewardsHTML = store.chain ? `<a class="rewards-strip" href="${rewardsUrl||'#'}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="text-decoration:none;display:flex;"><div class="rewards-strip-text"><strong>${store.chain} Rewards</strong>Sign up to unlock member prices</div><div class="rewards-strip-btn">Sign up →</div></a>` : '';
 
     card.innerHTML = `<div class="store-card-header"><div><div class="store-name">${store.name}</div><div class="store-meta">${[distStr,addrStr].filter(Boolean).join(' · ')}</div></div>${isFirst?'<div class="best-badge">Best price</div>':''}</div>${brandsHTML}${rewardsHTML}`;
     card.onclick = (e) => {
