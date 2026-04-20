@@ -1054,10 +1054,18 @@ async function submitNewStore() {
 async function searchStores(q) {
   const el = document.getElementById('store-results');
   if (q.length < 2) { el.style.display='none'; return; }
-  // Sort results by distance
-  const results = await sb(`stores?name=ilike.*${encodeURIComponent(q)}*&limit=10`);
+  // Search nearby stores first, then fall back to all stores
+  let results = [];
+  if (userLat && userLng) {
+    // Search within ~50 mile bounding box first
+    const latD = 0.75, lngD = 1.0;
+    results = await sb(`stores?name=ilike.*${encodeURIComponent(q)}*&lat=gte.${(userLat-latD).toFixed(4)}&lat=lte.${(userLat+latD).toFixed(4)}&lng=gte.${(userLng-lngD).toFixed(4)}&lng=lte.${(userLng+lngD).toFixed(4)}&limit=20`);
+  }
+  if (!results.length) {
+    results = await sb(`stores?name=ilike.*${encodeURIComponent(q)}*&limit=10`);
+  }
   if (!results.length) { el.style.display='none'; return; }
-  const sorted = results.map(s => ({ ...s, d: (s.lat&&userLat) ? dist(userLat,userLng,s.lat,s.lng) : 999 })).sort((a,b)=>a.d-b.d);
+  const sorted = results.map(s => ({ ...s, d: (s.lat&&userLat) ? dist(userLat,userLng,s.lat,s.lng) : 999 })).filter(s => s.d <= Math.max(radiusMiles, 25)).sort((a,b)=>a.d-b.d);
   el.innerHTML = sorted.map(s=>`<div class="store-result-item" onclick="selectStore('${s.id}','${s.name.replace(/'/g,"\\'")}','${([s.address,s.city,s.state].filter(Boolean).join(', ')).replace(/'/g,"\\'")}')"><strong>${s.name}</strong>${s.d<999?` <span style="font-size:11px;color:var(--green);font-weight:500;">${s.d.toFixed(1)} mi</span>`:''}<br><span style="font-size:11px;color:#7A9488;">${[s.address,s.city,s.state].filter(Boolean).join(', ')}</span></div>`).join('');
   el.style.display = 'block';
 }
