@@ -845,7 +845,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!btn) return;
     e.stopPropagation();
     if (btn.classList.contains('confirm-expired-btn') || btn.classList.contains('deny-expired-btn')) {
-      handleExpiredConfirm(btn.dataset.store, btn.dataset.brand, btn.dataset.flag, btn.dataset.field, btn.classList.contains('confirm-expired-btn'));
+      handleExpiredConfirm(btn.dataset.store, btn.dataset.brand, btn.dataset.flag, btn.dataset.field, btn.classList.contains('confirm-expired-btn'), btn);
       return;
     }
     const storeId = btn.dataset.store;
@@ -854,7 +854,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const direction = btn.dataset.direction || 'up';
     const confirmNew = btn.classList.contains('confirm-new-btn');
     const category = btn.dataset.category || null;
-    confirmPriceChange(storeId, brandId, confirmNew, price, direction, category);
+    confirmPriceChange(storeId, brandId, confirmNew, price, direction, category, btn);
   });
 });
 
@@ -1301,7 +1301,9 @@ function shareApp() {
   }
 }
 
-async function confirmPriceChange(storeId, brandId, confirmNew, pendingPrice, direction, category) {
+async function confirmPriceChange(storeId, brandId, confirmNew, pendingPrice, direction, category, btnEl) {
+  // Show immediate feedback on the button
+  if (btnEl) { btnEl.textContent = '⏳'; btnEl.disabled = true; btnEl.style.opacity = '0.6'; }
   try {
     const store = allStores.find(s => String(s.id) === String(storeId));
     if (!store || !store.chain) return;
@@ -1324,22 +1326,22 @@ async function confirmPriceChange(storeId, brandId, confirmNew, pendingPrice, di
     };
     const catInfo = category ? CAT_MAP[category] : null;
     if (confirmNew && catInfo) {
-      // Confirmed new price - update the specific price field and clear flag for all chain stores
-      for (const cs of chainStores) {
-        await sb('prices?store_id=eq.' + cs.id + '&brand_id=eq.' + brandId, {
+      // Confirmed new price - run all PATCHes in parallel
+      await Promise.all(chainStores.map(cs =>
+        sb('prices?store_id=eq.' + cs.id + '&brand_id=eq.' + brandId, {
           method: 'PATCH', prefer: 'return=minimal',
           body: JSON.stringify({ [catInfo.priceField]: pendingPrice, [catInfo.pendingField]: null, [category]: false, [catInfo.dirField]: null, price_change_reported_at: null, updated_at: new Date().toISOString() })
-        });
-      }
+        })
+      ));
       showToast('\u2713 Thanks! Price confirmed ' + dirWord + ' for all ' + store.chain + ' in ' + storeState);
     } else if (!confirmNew && catInfo) {
-      // Confirmed old price still same - just clear the flag for all chain stores
-      for (const cs of chainStores) {
-        await sb('prices?store_id=eq.' + cs.id + '&brand_id=eq.' + brandId, {
+      // Confirmed same price - run all PATCHes in parallel
+      await Promise.all(chainStores.map(cs =>
+        sb('prices?store_id=eq.' + cs.id + '&brand_id=eq.' + brandId, {
           method: 'PATCH', prefer: 'return=minimal',
           body: JSON.stringify({ [catInfo.pendingField]: null, [category]: false, [catInfo.dirField]: null, price_change_reported_at: null })
-        });
-      }
+        })
+      ));
       showToast('\u2713 Thanks! Price confirmed unchanged for all ' + store.chain + ' in ' + storeState);
     }
     discoveryRun = false;
@@ -1428,7 +1430,8 @@ async function submitExpiredDeals() {
   }
 }
 
-async function handleExpiredConfirm(storeId, brandId, flag, field, confirmExpired) {
+async function handleExpiredConfirm(storeId, brandId, flag, field, confirmExpired, btnEl) {
+  if (btnEl) { btnEl.textContent = '⏳'; btnEl.disabled = true; btnEl.style.opacity = '0.6'; }
   try {
     const store = allStores.find(s => String(s.id) === String(storeId));
     let storeState = store?.state;
@@ -1440,22 +1443,20 @@ async function handleExpiredConfirm(storeId, brandId, flag, field, confirmExpire
       ? await sb('stores?chain=eq.' + encodeURIComponent(store.chain) + '&state=eq.' + storeState + '&select=id')
       : [{ id: storeId }];
     if (confirmExpired) {
-      // Null out the price field and clear flag for all chain stores
-      for (const cs of chainStores) {
-        await sb('prices?store_id=eq.' + cs.id + '&brand_id=eq.' + brandId, {
+      await Promise.all(chainStores.map(cs =>
+        sb('prices?store_id=eq.' + cs.id + '&brand_id=eq.' + brandId, {
           method: 'PATCH', prefer: 'return=minimal',
           body: JSON.stringify({ [field]: null, [flag]: false })
-        });
-      }
+        })
+      ));
       showToast('✓ Deal removed for all ' + (store?.chain||'') + ' in ' + (storeState||'this state'));
     } else {
-      // Just clear the flag for all chain stores
-      for (const cs of chainStores) {
-        await sb('prices?store_id=eq.' + cs.id + '&brand_id=eq.' + brandId, {
+      await Promise.all(chainStores.map(cs =>
+        sb('prices?store_id=eq.' + cs.id + '&brand_id=eq.' + brandId, {
           method: 'PATCH', prefer: 'return=minimal',
           body: JSON.stringify({ [flag]: false })
-        });
-      }
+        })
+      ));
       showToast('✓ Deal confirmed still active');
     }
     discoveryRun = false;
