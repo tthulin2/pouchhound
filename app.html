@@ -71,10 +71,14 @@ html,body { height:100%; font-family:'DM Sans',sans-serif; background:var(--surf
 .brand-scroll::-webkit-scrollbar { display:none; }
 .brand-chip { flex-shrink:0; padding:5px 12px; border-radius:20px; font-size:12px; font-weight:500; cursor:pointer; border:1px solid var(--border); background:var(--white); color:var(--text-mid); transition:all 0.15s; white-space:nowrap; user-select:none; }
 .brand-chip.active { background:var(--green); color:white; border-color:var(--green); }
-.tier-chip { flex-shrink:0; padding:3px 9px; border-radius:20px; font-size:11px; font-weight:500; cursor:pointer; border:1px solid var(--border); background:var(--white); color:var(--text-muted); transition:all 0.15s; white-space:nowrap; user-select:none; }
-.tier-chip.active { background:var(--green-light); color:var(--green-dark); border-color:var(--green); }
-.tier-scroll { display:flex; gap:5px; overflow-x:auto; padding:4px 16px 6px; scrollbar-width:none; }
-.tier-scroll::-webkit-scrollbar { display:none; }
+.filter-btn { background:var(--white); border:1px solid var(--border); border-radius:8px; padding:5px 10px; font-size:12px; font-weight:500; color:var(--text-mid); cursor:pointer; font-family:'DM Sans',sans-serif; display:flex; align-items:center; gap:5px; white-space:nowrap; }
+.filter-btn.active { background:var(--green-light); border-color:var(--green); color:var(--green-dark); }
+.filter-dropdown { position:absolute; top:100%; right:0; background:var(--white); border:1px solid var(--border); border-radius:12px; padding:8px; z-index:200; box-shadow:0 4px 16px rgba(0,0,0,0.12); min-width:180px; display:none; }
+.filter-dropdown.open { display:block; }
+.filter-dropdown-row { display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:8px; cursor:pointer; font-size:13px; color:var(--text); }
+.filter-dropdown-row:hover { background:var(--surface); }
+.filter-dropdown-row input { width:16px; height:16px; accent-color:var(--green); cursor:pointer; }
+.filter-row { display:flex; align-items:center; justify-content:flex-end; padding:4px 16px 6px; position:relative; }
 
 /* VIEW TOGGLE */
 .view-toggle { display:flex; padding:7px 16px; background:var(--white); border-bottom:1px solid var(--border); flex-shrink:0; gap:6px; }
@@ -254,13 +258,19 @@ html,body { height:100%; font-family:'DM Sans',sans-serif; background:var(--surf
     <div class="brand-chip active" data-brand="ALL" onclick="toggleBrand(this)">All</div>
   </div>
 
-  <div class="tier-scroll" id="tier-scroll">
-    <span class="tier-chip active" data-tier="shelf" onclick="toggleTierFilter(this)">Shelf (single)</span>
-    <span class="tier-chip active" data-tier="sale" onclick="toggleTierFilter(this)">Sale (single)</span>
-    <span class="tier-chip active" data-tier="rewards" onclick="toggleTierFilter(this)">Rewards (single)</span>
-    <span class="tier-chip active" data-tier="multican" onclick="toggleTierFilter(this)">Multi-can</span>
-    <span class="tier-chip active" data-tier="sale_multican" onclick="toggleTierFilter(this)">Sale multi-can</span>
-    <span class="tier-chip active" data-tier="rewards_multican" onclick="toggleTierFilter(this)">Rewards multi-can</span>
+  <div class="filter-row">
+    <button class="filter-btn" id="filter-btn" onclick="toggleFilterDropdown()">
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      Price tiers <span id="filter-count"></span>
+    </button>
+    <div class="filter-dropdown" id="filter-dropdown">
+      <div class="filter-dropdown-row" onclick="toggleTierFilter('shelf')"><input type="checkbox" id="ft-shelf" checked> <label for="ft-shelf" style="cursor:pointer;">Shelf (single)</label></div>
+      <div class="filter-dropdown-row" onclick="toggleTierFilter('sale')"><input type="checkbox" id="ft-sale" checked> <label for="ft-sale" style="cursor:pointer;">Sale (single)</label></div>
+      <div class="filter-dropdown-row" onclick="toggleTierFilter('rewards')"><input type="checkbox" id="ft-rewards" checked> <label for="ft-rewards" style="cursor:pointer;">Rewards (single)</label></div>
+      <div class="filter-dropdown-row" onclick="toggleTierFilter('multican')"><input type="checkbox" id="ft-multican" checked> <label for="ft-multican" style="cursor:pointer;">Multi-can</label></div>
+      <div class="filter-dropdown-row" onclick="toggleTierFilter('sale_multican')"><input type="checkbox" id="ft-sale_multican" checked> <label for="ft-sale_multican" style="cursor:pointer;">Sale multi-can</label></div>
+      <div class="filter-dropdown-row" onclick="toggleTierFilter('rewards_multican')"><input type="checkbox" id="ft-rewards_multican" checked> <label for="ft-rewards_multican" style="cursor:pointer;">Rewards multi-can</label></div>
+    </div>
   </div>
 
   <div class="view-toggle">
@@ -460,12 +470,16 @@ const CHAIN_MAP = [
 ];
 const CHAIN_SEARCH_TERMS = ["Casey's General Store","Pump Pantry","Kwik Trip","Pilot Flying J","Love's Travel Stop","Sheetz","Wawa","7-Eleven","Circle K","QuikTrip","Maverik"];
 const REWARDS_LINKS = {
+  // Midwest
   "Casey's": "https://www.caseys.com/rewards",
   "Pump & Pantry": "https://www.pumpandpantry.com/pumped-up-rewards",
   "Kwik Trip": "https://www.kwiktrip.com/rewards",
   "Stop-N-Go": "https://www.kwiktrip.com/rewards",
   "Tobacco Outlet Plus": "https://www.kwiktrip.com/rewards",
   "Kwik Spirits": "https://www.kwiktrip.com/rewards",
+  "Kum & Go": "https://www.kumandgo.com/rewards",
+  "Cenex": "https://www.cenex.com/rewards",
+  // National
   "7-Eleven": "https://www.7-eleven.com/7rewards",
   "Circle K": "https://www.circlek.com/inner-circle",
   "Pilot Flying J": "https://www.pilottravelcenters.com/myrewards",
@@ -474,6 +488,34 @@ const REWARDS_LINKS = {
   "Wawa": "https://www.wawa.com/about/wawa-rewards",
   "QuikTrip": "https://www.quiktrip.com/QTrewards",
   "Maverik": "https://maverik.com/adventure-club",
+  "Speedway": "https://www.speedway.com/speedy-rewards",
+  "Cumberland Farms": "https://www.cumberlandfarms.com/smartrewards",
+  // Regional
+  "RaceTrac": "https://www.racetrac.com/rewards",
+  "Murphy USA": "https://www.murphyusa.com/murphy-drive-rewards",
+  "Royal Farms": "https://www.royalfarms.com/rofo-rewards",
+  "Thorntons": "https://www.mythorntons.com/rewards",
+  "GetGo": "https://www.getgocafe.com/myperks",
+  "Holiday": "https://www.holidaystationstores.com/rewards",
+  "Yesway": "https://www.yesway.com/rewards",
+  "Allsup's": "https://www.yesway.com/rewards",
+  "Buc-ee's": "https://www.buc-ees.com",
+  "Rutters": "https://www.rutters.com/rewards",
+  "Twice Daily": "https://www.twicedaily.com/rewards",
+  "United Dairy Farmers": "https://www.udfinc.com/rewards",
+  "Stinker Stores": "https://www.stinkerstores.com/rewards",
+  "Weigel's": "https://www.weigels.com/rewards",
+  "Parker's": "https://www.parkerskitchen.com/rewards",
+  "Handy Mart": "https://www.handymart.com",
+  "Flash Foods": "https://www.flashfoods.com",
+  "Dash In": "https://www.dashin.com/rewards",
+  "Global Partners": "https://www.globalp.com",
+  "Sunoco": "https://www.sunocorewards.com",
+  "BP": "https://www.bp.com/earnify",
+  "Exxon": "https://www.exxon.com/en/rewards",
+  "Mobil": "https://www.mobil.com/en/rewards",
+  "Shell": "https://www.shell.us/motorist/shell-fuel-rewards.html",
+  "Chevron": "https://www.chevronwithtechron.com/station/rewards",
 };
 
 function normalizeChain(name) {
@@ -545,15 +587,41 @@ function buildBrandSelectGrid() {
   });
 }
 
-function toggleTierFilter(chip) {
-  const tier = chip.dataset.tier;
-  if (activeTiers.has(tier)) {
-    activeTiers.delete(tier);
-    chip.classList.remove('active');
-  } else {
-    activeTiers.add(tier);
-    chip.classList.add('active');
+function toggleFilterDropdown() {
+  const dd = document.getElementById('filter-dropdown');
+  dd.classList.toggle('open');
+  // Close when clicking outside
+  if (dd.classList.contains('open')) {
+    setTimeout(() => document.addEventListener('click', closeFilterDropdown, { once: true }), 10);
   }
+}
+
+function closeFilterDropdown(e) {
+  const dd = document.getElementById('filter-dropdown');
+  const btn = document.getElementById('filter-btn');
+  if (!dd.contains(e.target) && !btn.contains(e.target)) {
+    dd.classList.remove('open');
+  }
+}
+
+function toggleTierFilter(tier) {
+  // Prevent event from immediately closing dropdown
+  event.stopPropagation();
+  const cb = document.getElementById('ft-' + tier);
+  if (!cb) return;
+  // Toggle checkbox
+  cb.checked = !cb.checked;
+  if (cb.checked) {
+    activeTiers.add(tier);
+  } else {
+    activeTiers.delete(tier);
+  }
+  // Update filter button appearance
+  const allActive = activeTiers.size === 6;
+  const btn = document.getElementById('filter-btn');
+  const countEl = document.getElementById('filter-count');
+  btn.classList.toggle('active', !allActive);
+  countEl.textContent = allActive ? '' : `(${activeTiers.size}/6)`;
   renderStores();
 }
 
