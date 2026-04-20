@@ -603,11 +603,18 @@ async function loadNearbyStores() {
   try {
     // Load stores with prices - graceful error handling
     let stores = [];
+    // Build bounding box filter if we have user location
+    const priceFields = 'id,brand_id,shelf_price,sale_price,rewards_price,multican_qty,multican_total,multican_price_per_can,sale_multican_qty,sale_multican_total,sale_multican_price_per_can,rewards_multican_qty,rewards_multican_total,rewards_multican_price_per_can,best_price,confirmed_count,updated_at,price_change_flagged,pending_price,price_change_direction,shelf_change_flagged,pending_shelf_price,shelf_change_direction,sale_change_flagged,pending_sale_price,sale_change_direction,rewards_change_flagged,pending_rewards_price,rewards_change_direction,multican_change_flagged,pending_multican_price,multican_change_direction,sale_multican_change_flagged,pending_sale_multican_price,sale_multican_change_direction,rewards_multican_change_flagged,pending_rewards_multican_price,rewards_multican_change_direction,price_change_reported_at,sale_expired_flagged,rewards_expired_flagged,multican_expired_flagged,sale_multican_expired_flagged,rewards_multican_expired_flagged';
+    let locationFilter = '';
+    if (userLat && userLng) {
+      const latD = (radiusMiles / 69) + 0.1;
+      const lngD = (radiusMiles / 55) + 0.1;
+      locationFilter = `&lat=gte.${(userLat-latD).toFixed(4)}&lat=lte.${(userLat+latD).toFixed(4)}&lng=gte.${(userLng-lngD).toFixed(4)}&lng=lte.${(userLng+lngD).toFixed(4)}`;
+    }
     try {
-      stores = await sb('stores?select=*,prices(id,brand_id,shelf_price,sale_price,rewards_price,multican_qty,multican_total,multican_price_per_can,sale_multican_qty,sale_multican_total,sale_multican_price_per_can,rewards_multican_qty,rewards_multican_total,rewards_multican_price_per_can,best_price,confirmed_count,updated_at,price_change_flagged,pending_price,price_change_direction,shelf_change_flagged,pending_shelf_price,shelf_change_direction,sale_change_flagged,pending_sale_price,sale_change_direction,rewards_change_flagged,pending_rewards_price,rewards_change_direction,multican_change_flagged,pending_multican_price,multican_change_direction,sale_multican_change_flagged,pending_sale_multican_price,sale_multican_change_direction,rewards_multican_change_flagged,pending_rewards_multican_price,rewards_multican_change_direction,price_change_reported_at,sale_expired_flagged,rewards_expired_flagged,multican_expired_flagged,sale_multican_expired_flagged,rewards_multican_expired_flagged)');
+      stores = await sb(`stores?select=*,prices(${priceFields})${locationFilter}`);
     } catch(e) {
-      // Fallback without sale columns if they don't exist yet
-      stores = await sb('stores?select=*,prices(id,brand_id,shelf_price,rewards_price,multican_qty,multican_total,multican_price_per_can,rewards_multican_qty,rewards_multican_total,rewards_multican_price_per_can,best_price,confirmed_count,updated_at,price_change_flagged,pending_price,price_change_direction)');
+      stores = await sb(`stores?select=*,prices(id,brand_id,shelf_price,rewards_price,multican_qty,multican_total,multican_price_per_can,rewards_multican_qty,rewards_multican_total,rewards_multican_price_per_can,best_price,confirmed_count,updated_at,price_change_flagged,pending_price,price_change_direction)${locationFilter}`);
     }
     allStores = stores.filter(s => {
       if (!s.lat || !s.lng || !userLat) return true;
