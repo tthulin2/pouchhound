@@ -148,23 +148,48 @@ function loadCSV(input) {
   reader.onload = (e) => {
     const rows = parseCSV(e.target.result);
     const skipped=[]; validStores=[];
+    const BAD_NAMES = ['goodstop', 'shell', 'marathon', 'bp ', 'exxon', 'chevron', 'sunoco'];
+    // Detect CSV format — Kwik Trip style vs OSM export style
+    const isOSMFormat = rows.length > 0 && 'lat' in rows[0] && 'chain' in rows[0];
+    const BAD_NAMES = ['goodstop','shell','marathon','exxon','chevron','sunoco'];
+
     for (const row of rows) {
-      const name = (row['Store Name']||'').toUpperCase();
-      if (!VALID_PREFIXES.some(p=>name.startsWith(p))) { skipped.push(row); continue; }
-      if (!row['Latitude']||!row['Longitude']) { skipped.push(row); continue; }
-      let chain='Kwik Trip';
-      if (name.startsWith('STOP N GO')) chain='Stop-N-Go';
-      else if (name.startsWith('TOBACCO OUTLET PLUS')) chain='Tobacco Outlet Plus';
-      else if (name.startsWith('KWIK SPIRITS')) chain='Kwik Spirits';
-      const address=[row['Address'],row['City'],row['State'],row['Zip']].filter(Boolean).join(', ')+', USA';
-      validStores.push({ name:toTitleCase(row['Store Name']), chain, address, city:row['City'], state:row['State'], zip:row['Zip'], lat:parseFloat(row['Latitude']), lng:parseFloat(row['Longitude']) });
+      if (isOSMFormat) {
+        // OSM export format (name, chain, address, city, state, zip, lat, lng)
+        const nameLower = (row['name']||'').toLowerCase();
+        if (BAD_NAMES.some(b=>nameLower.includes(b))) { skipped.push(row); continue; }
+        const lat = parseFloat(row['lat']), lng = parseFloat(row['lng']);
+        if (isNaN(lat)||isNaN(lng)) { skipped.push(row); continue; }
+        validStores.push({ name:row['name'], chain:row['chain']||'Casey's', address:row['address']||', USA', city:row['city'], state:row['state'], zip:row['zip'], lat, lng });
+      } else {
+        // Kwik Trip CSV format (Store Name, Latitude, Longitude, etc.)
+        const name = (row['Store Name']||'').toUpperCase();
+        if (!VALID_PREFIXES.some(p=>name.startsWith(p))) { skipped.push(row); continue; }
+        if (!row['Latitude']||!row['Longitude']) { skipped.push(row); continue; }
+        let chain='Kwik Trip';
+        if (name.startsWith('STOP N GO')) chain='Stop-N-Go';
+        else if (name.startsWith('TOBACCO OUTLET PLUS')) chain='Tobacco Outlet Plus';
+        else if (name.startsWith('KWIK SPIRITS')) chain='Kwik Spirits';
+        const address=[row['Address'],row['City'],row['State'],row['Zip']].filter(Boolean).join(', ')+', USA';
+        validStores.push({ name:toTitleCase(row['Store Name']), chain, address, city:row['City'], state:row['State'], zip:row['Zip'], lat:parseFloat(row['Latitude']), lng:parseFloat(row['Longitude']) });
+      }
     }
+    // Deduplicate by ~110m grid (3 decimal places)
+    const seen = new Set();
+    const deduped = [];
+    for (const s of validStores) {
+      const key = s.lat.toFixed(3) + ',' + s.lng.toFixed(3);
+      if (!seen.has(key)) { seen.add(key); deduped.push(s); }
+    }
+    const dupCount = validStores.length - deduped.length;
+    validStores = deduped;
+
     document.getElementById('stat-total').textContent=rows.length;
     document.getElementById('stat-valid').textContent=validStores.length;
-    document.getElementById('stat-skip').textContent=skipped.length;
+    document.getElementById('stat-skip').textContent=skipped.length + dupCount;
     document.getElementById('file-stats').style.display='block';
     document.getElementById('import-card').style.display='block';
-    log(`Loaded ${validStores.length} valid stores, skipped ${skipped.length}`, 'info');
+    log(`Loaded ${validStores.length} valid stores (${dupCount} near-duplicates removed, ${skipped.length} skipped)`, 'info');
   };
   reader.readAsText(file);
 }
@@ -214,7 +239,7 @@ out center;`;
       const lat = el.lat || el.center?.lat;
       const lng = el.lon || el.center?.lon;
       if (!lat || !lng) continue;
-      const key = lat.toFixed(5)+','+lng.toFixed(5);
+      const key = parseFloat(lat).toFixed(3)+','+parseFloat(lng).toFixed(3);
       if (seen.has(key)) continue;
       seen.add(key);
       const tags = el.tags || {};
