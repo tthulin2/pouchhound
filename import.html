@@ -204,85 +204,85 @@ async function fetchOSM(btn, chainName, brandName) {
   if (chainName === "Casey's") {
     query = `[out:json][timeout:250];
 (
-  node["brand"="Casey's General Stores"][bbox=24,-125,50,-65];
-  node["brand"="Casey's"][bbox=24,-125,50,-65];
-  node["name"="Casey's General Store"][bbox=24,-125,50,-65];
-  node["name"="Casey's"][bbox=24,-125,50,-65];
-  way["brand"="Casey's General Stores"][bbox=24,-125,50,-65];
-  way["brand"="Casey's"][bbox=24,-125,50,-65];
-  way["name"="Casey's General Store"][bbox=24,-125,50,-65];
-  way["name"="Casey's"][bbox=24,-125,50,-65];
+  node["brand"="Casey's General Stores"](24,-125,50,-65);
+  node["brand"="Casey's"](24,-125,50,-65);
+  node["name"="Casey's General Store"](24,-125,50,-65);
+  node["name"="Casey's"](24,-125,50,-65);
+  way["brand"="Casey's General Stores"](24,-125,50,-65);
+  way["brand"="Casey's"](24,-125,50,-65);
+  way["name"="Casey's General Store"](24,-125,50,-65);
+  way["name"="Casey's"](24,-125,50,-65);
 );
 out center;`;
   } else if (chainName === "QuikTrip") {
     query = `[out:json][timeout:250];
 (
-  node["brand"="QuikTrip"][bbox=24,-125,50,-65];
-  node["brand"="Quik Trip"][bbox=24,-125,50,-65];
-  node["name"="QuikTrip"]["amenity"~"fuel|convenience"][bbox=24,-125,50,-65];
-  node["name"="QT"]["amenity"~"fuel|convenience"][bbox=24,-125,50,-65];
-  way["brand"="QuikTrip"][bbox=24,-125,50,-65];
-  way["brand"="Quik Trip"][bbox=24,-125,50,-65];
-  way["name"="QuikTrip"]["amenity"~"fuel|convenience"][bbox=24,-125,50,-65];
+  node["brand"="QuikTrip"](24,-125,50,-65);
+  node["brand"="Quik Trip"](24,-125,50,-65);
+  node["name"="QuikTrip"]["amenity"~"fuel|convenience"](24,-125,50,-65);
+  node["name"="QT"]["amenity"~"fuel|convenience"](24,-125,50,-65);
+  way["brand"="QuikTrip"](24,-125,50,-65);
+  way["brand"="Quik Trip"](24,-125,50,-65);
+  way["name"="QuikTrip"]["amenity"~"fuel|convenience"](24,-125,50,-65);
 );
 out center;`;
   } else if (chainName === "Pilot Flying J") {
     query = `[out:json][timeout:250];
 (
-  node["brand"="Pilot Flying J"][bbox=24,-125,50,-65];
-  node["brand"="Pilot Travel Centers"][bbox=24,-125,50,-65];
-  node["name"="Pilot Flying J"][bbox=24,-125,50,-65];
-  node["name"="Flying J"][bbox=24,-125,50,-65];
-  way["brand"="Pilot Flying J"][bbox=24,-125,50,-65];
-  way["brand"="Pilot Travel Centers"][bbox=24,-125,50,-65];
-  way["name"="Pilot Flying J"][bbox=24,-125,50,-65];
+  node["brand"="Pilot Flying J"](24,-125,50,-65);
+  node["brand"="Pilot Travel Centers"](24,-125,50,-65);
+  node["name"="Pilot Flying J"](24,-125,50,-65);
+  node["name"="Flying J"](24,-125,50,-65);
+  way["brand"="Pilot Flying J"](24,-125,50,-65);
+  way["brand"="Pilot Travel Centers"](24,-125,50,-65);
+  way["name"="Pilot Flying J"](24,-125,50,-65);
 );
 out center;`;
   } else if (chainName === "Love's") {
     query = `[out:json][timeout:250];
 (
-  node["brand"="Love's Travel Stops"][bbox=24,-125,50,-65];
-  node["brand"="Love's"][bbox=24,-125,50,-65];
-  node["name"="Love's Travel Stop"][bbox=24,-125,50,-65];
-  way["brand"="Love's Travel Stops"][bbox=24,-125,50,-65];
-  way["brand"="Love's"][bbox=24,-125,50,-65];
-  way["name"="Love's Travel Stop"][bbox=24,-125,50,-65];
+  node["brand"="Love's Travel Stops"](24,-125,50,-65);
+  node["brand"="Love's"](24,-125,50,-65);
+  node["name"="Love's Travel Stop"](24,-125,50,-65);
+  way["brand"="Love's Travel Stops"](24,-125,50,-65);
+  way["brand"="Love's"](24,-125,50,-65);
+  way["name"="Love's Travel Stop"](24,-125,50,-65);
 );
 out center;`;
   } else if (chainName === "Sheetz") {
     query = `[out:json][timeout:250];
 (
-  node["brand"="Sheetz"][bbox=24,-125,50,-65];
-  node["name"="Sheetz"]["amenity"~"fuel|convenience"][bbox=24,-125,50,-65];
-  way["brand"="Sheetz"][bbox=24,-125,50,-65];
-  way["name"="Sheetz"]["amenity"~"fuel|convenience"][bbox=24,-125,50,-65];
+  node["brand"="Sheetz"](24,-125,50,-65);
+  node["name"="Sheetz"]["amenity"~"fuel|convenience"](24,-125,50,-65);
+  way["brand"="Sheetz"](24,-125,50,-65);
+  way["name"="Sheetz"]["amenity"~"fuel|convenience"](24,-125,50,-65);
 );
 out center;`;
   } else if (chainName === "Maverik") {
     query = `[out:json][timeout:250];
 (
-  node["brand"="Maverik"][bbox=24,-125,50,-65];
-  node["name"="Maverik"]["amenity"~"fuel|convenience"][bbox=24,-125,50,-65];
-  way["brand"="Maverik"][bbox=24,-125,50,-65];
-  way["name"="Maverik"]["amenity"~"fuel|convenience"][bbox=24,-125,50,-65];
+  node["brand"="Maverik"](24,-125,50,-65);
+  node["name"="Maverik"]["amenity"~"fuel|convenience"](24,-125,50,-65);
+  way["brand"="Maverik"](24,-125,50,-65);
+  way["name"="Maverik"]["amenity"~"fuel|convenience"](24,-125,50,-65);
 );
 out center;`;
   } else if (chainName === "Pump & Pantry") {
     query = `[out:json][timeout:250];
 (
-  node["brand"="Pump & Pantry"][bbox=24,-125,50,-65];
-  node["name"="Pump & Pantry"][bbox=24,-125,50,-65];
-  way["brand"="Pump & Pantry"][bbox=24,-125,50,-65];
-  way["name"="Pump & Pantry"][bbox=24,-125,50,-65];
+  node["brand"="Pump & Pantry"](24,-125,50,-65);
+  node["name"="Pump & Pantry"](24,-125,50,-65);
+  way["brand"="Pump & Pantry"](24,-125,50,-65);
+  way["name"="Pump & Pantry"](24,-125,50,-65);
 );
 out center;`;
   } else {
     query = `[out:json][timeout:250];
 (
-  node["brand"="${brandName}"][bbox=24,-125,50,-65];
-  node["name"="${brandName}"]["amenity"~"fuel|convenience"][bbox=24,-125,50,-65];
-  way["brand"="${brandName}"][bbox=24,-125,50,-65];
-  way["name"="${brandName}"]["amenity"~"fuel|convenience"][bbox=24,-125,50,-65];
+  node["brand"="${brandName}"](24,-125,50,-65);
+  node["name"="${brandName}"]["amenity"~"fuel|convenience"](24,-125,50,-65);
+  way["brand"="${brandName}"](24,-125,50,-65);
+  way["name"="${brandName}"]["amenity"~"fuel|convenience"](24,-125,50,-65);
 );
 out center;`;
   }
@@ -367,8 +367,10 @@ async function startImport() {
     const batch = validStores.slice(i, i+5);
     await Promise.all(batch.map(async store => {
       try {
-        const existing = await sb(`stores?lat=eq.${store.lat}&lng=eq.${store.lng}&select=id&limit=1`);
-        if (existing && existing.length>0) { skipped++; log(`↷ Exists: ${store.name} — ${store.city}, ${store.state}`, 'skip'); return; }
+        // Check within 100m bounding box (~0.0009 lat, ~0.0012 lng)
+        const latD = 0.0009, lngD = 0.0012;
+        const existing = await sb(`stores?chain=eq.${encodeURIComponent(store.chain)}&lat=gte.${(store.lat-latD).toFixed(6)}&lat=lte.${(store.lat+latD).toFixed(6)}&lng=gte.${(store.lng-lngD).toFixed(6)}&lng=lte.${(store.lng+lngD).toFixed(6)}&select=id&limit=1`);
+        if (existing && existing.length>0) { skipped++; log(`↷ Exists within 100m: ${store.name} — ${store.city}, ${store.state}`, 'skip'); return; }
         await sb('stores', { method:'POST', prefer:'return=minimal', body:JSON.stringify(store) });
         inserted++;
         log(`✓ ${store.name} — ${store.city||'?'}, ${store.state||'?'}`, 'ok');
