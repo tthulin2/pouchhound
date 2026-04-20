@@ -78,7 +78,7 @@ html,body { height:100%; font-family:'DM Sans',sans-serif; background:var(--surf
 .filter-dropdown-row { display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:8px; cursor:pointer; font-size:13px; color:var(--text); }
 .filter-dropdown-row:hover { background:var(--surface); }
 .filter-dropdown-row input { width:16px; height:16px; accent-color:var(--green); cursor:pointer; }
-.filter-row { display:flex; align-items:center; justify-content:flex-end; padding:4px 16px 6px; position:relative; }
+.filter-row { display:flex; align-items:center; justify-content:center; padding:4px 16px 6px; position:relative; }
 
 /* VIEW TOGGLE */
 .view-toggle { display:flex; padding:7px 16px; background:var(--white); border-bottom:1px solid var(--border); flex-shrink:0; gap:6px; }
@@ -264,12 +264,12 @@ html,body { height:100%; font-family:'DM Sans',sans-serif; background:var(--surf
       Price tiers <span id="filter-count"></span>
     </button>
     <div class="filter-dropdown" id="filter-dropdown">
-      <div class="filter-dropdown-row" onclick="toggleTierFilter('shelf')"><input type="checkbox" id="ft-shelf" checked> <label for="ft-shelf" style="cursor:pointer;">Shelf (single)</label></div>
-      <div class="filter-dropdown-row" onclick="toggleTierFilter('sale')"><input type="checkbox" id="ft-sale" checked> <label for="ft-sale" style="cursor:pointer;">Sale (single)</label></div>
-      <div class="filter-dropdown-row" onclick="toggleTierFilter('rewards')"><input type="checkbox" id="ft-rewards" checked> <label for="ft-rewards" style="cursor:pointer;">Rewards (single)</label></div>
-      <div class="filter-dropdown-row" onclick="toggleTierFilter('multican')"><input type="checkbox" id="ft-multican" checked> <label for="ft-multican" style="cursor:pointer;">Multi-can</label></div>
-      <div class="filter-dropdown-row" onclick="toggleTierFilter('sale_multican')"><input type="checkbox" id="ft-sale_multican" checked> <label for="ft-sale_multican" style="cursor:pointer;">Sale multi-can</label></div>
-      <div class="filter-dropdown-row" onclick="toggleTierFilter('rewards_multican')"><input type="checkbox" id="ft-rewards_multican" checked> <label for="ft-rewards_multican" style="cursor:pointer;">Rewards multi-can</label></div>
+      <div class="filter-dropdown-row"><input type="checkbox" id="ft-shelf" checked onchange="toggleTierFilter('shelf', event)"> <label for="ft-shelf" style="cursor:pointer;">Shelf (single)</label></div>
+      <div class="filter-dropdown-row"><input type="checkbox" id="ft-sale" checked onchange="toggleTierFilter('sale', event)"> <label for="ft-sale" style="cursor:pointer;">Sale (single)</label></div>
+      <div class="filter-dropdown-row"><input type="checkbox" id="ft-rewards" checked onchange="toggleTierFilter('rewards', event)"> <label for="ft-rewards" style="cursor:pointer;">Rewards (single)</label></div>
+      <div class="filter-dropdown-row"><input type="checkbox" id="ft-multican" checked onchange="toggleTierFilter('multican', event)"> <label for="ft-multican" style="cursor:pointer;">Multi-can</label></div>
+      <div class="filter-dropdown-row"><input type="checkbox" id="ft-sale_multican" checked onchange="toggleTierFilter('sale_multican', event)"> <label for="ft-sale_multican" style="cursor:pointer;">Sale multi-can</label></div>
+      <div class="filter-dropdown-row"><input type="checkbox" id="ft-rewards_multican" checked onchange="toggleTierFilter('rewards_multican', event)"> <label for="ft-rewards_multican" style="cursor:pointer;">Rewards multi-can</label></div>
     </div>
   </div>
 
@@ -601,16 +601,14 @@ function closeFilterDropdown(e) {
   const btn = document.getElementById('filter-btn');
   if (!dd.contains(e.target) && !btn.contains(e.target)) {
     dd.classList.remove('open');
+    e.stopPropagation();
   }
 }
 
-function toggleTierFilter(tier) {
-  // Prevent event from immediately closing dropdown
-  event.stopPropagation();
+function toggleTierFilter(tier, e) {
+  if (e) e.stopPropagation();
   const cb = document.getElementById('ft-' + tier);
   if (!cb) return;
-  // Toggle checkbox
-  cb.checked = !cb.checked;
   if (cb.checked) {
     activeTiers.add(tier);
   } else {
@@ -936,8 +934,8 @@ function renderStores() {
 
     card.innerHTML = `<div class="store-card-header"><div><div class="store-name">${store.name}</div><div class="store-meta">${[distStr,addrStr].filter(Boolean).join(' · ')}</div></div>${isFirst?'<div class="best-badge">Best price</div>':''}</div>${brandsHTML}${rewardsHTML}`;
     card.onclick = (e) => {
-      // Don't navigate to map if clicking interactive elements
-      if (e.target.closest('button') || e.target.closest('a')) return;
+      // Don't navigate to map if clicking interactive elements or filter dropdown
+      if (e.target.closest('button') || e.target.closest('a') || e.target.closest('.filter-dropdown') || e.target.closest('input') || e.target.closest('label')) return;
       focusStoreOnMap(store);
     };
     list.appendChild(card);
