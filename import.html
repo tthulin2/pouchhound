@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PouchHound — Bulk Store Import</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: #0E1A16; color: #E8F5F0; min-height: 100vh; padding: 40px 20px; max-width: 700px; margin: 0 auto; }
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Syne:wght@700&display=swap');
+  h1 { font-family: 'Syne', sans-serif; font-size: 28px; color: #1D9E75; margin-bottom: 6px; }
+  .subtitle { font-size: 13px; color: #7A9488; margin-bottom: 32px; }
+  .card { background: #162820; border: 1px solid #1D9E75; border-radius: 16px; padding: 24px; margin-bottom: 20px; }
+  .card h2 { font-size: 16px; font-weight: 600; margin-bottom: 16px; color: #E8F5F0; }
+  .stat-row { display: flex; gap: 16px; margin-bottom: 20px; }
+  .stat { flex: 1; background: #0E1A16; border-radius: 10px; padding: 16px; text-align: center; }
+  .stat-num { font-family: 'Syne', sans-serif; font-size: 32px; font-weight: 700; color: #1D9E75; }
+  .stat-label { font-size: 11px; color: #7A9488; margin-top: 4px; }
+  .btn-primary { background: #1D9E75; color: white; width: 100%; margin-bottom: 10px; border: none; border-radius: 10px; padding: 12px 24px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.2s; }
+  .btn-primary:hover { background: #17896A; }
+  .btn-primary:disabled { background: #2A4A3E; color: #7A9488; cursor: not-allowed; }
+  .log { background: #0A1410; border-radius: 10px; padding: 16px; height: 350px; overflow-y: auto; font-size: 12px; font-family: monospace; line-height: 1.6; }
+  .log-entry { margin-bottom: 2px; }
+  .log-ok { color: #1D9E75; }
+  .log-skip { color: #7A9488; }
+  .log-err { color: #E24B4A; }
+  .log-info { color: #FFD700; }
+  .progress-bar { height: 8px; background: #0A1410; border-radius: 4px; overflow: hidden; margin: 12px 0; }
+  .progress-fill { height: 100%; background: #1D9E75; border-radius: 4px; transition: width 0.3s; width: 0%; }
+  .warning { background: #2A1E0A; border: 1px solid #FFD700; border-radius: 10px; padding: 12px 16px; font-size: 12px; color: #FFD700; margin-bottom: 16px; }
+  .chain-btn { display: inline-block; background: #0E1A16; color: #1D9E75; border: 1px solid #1D9E75; border-radius: 8px; padding: 8px 14px; font-size: 12px; font-weight: 600; margin: 4px; cursor: pointer; transition: all 0.15s; }
+  .chain-btn:hover { background: #1D9E75; color: white; }
+  input[type=file] { background: #0A1410; border: 1px solid #2A4A3E; border-radius: 8px; color: #E8F5F0; padding: 8px 12px; font-size: 13px; font-family: 'DM Sans', sans-serif; width: 100%; margin-bottom: 12px; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+  .tab { flex: 1; padding: 10px; border: 1px solid #2A4A3E; border-radius: 8px; text-align: center; cursor: pointer; font-size: 13px; font-weight: 500; color: #7A9488; background: #0A1410; transition: all 0.15s; }
+  .tab.active { background: #1D9E75; color: white; border-color: #1D9E75; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+</style>
+</head>
+<body>
+
+<h1>🐾 PouchHound</h1>
+<p class="subtitle">Bulk Store Import Tool — Admin Only</p>
+
+<div class="card">
+  <h2>📥 Import Method</h2>
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('csv')">📂 CSV File</div>
+    <div class="tab" onclick="switchTab('osm')">🗺 OpenStreetMap</div>
+  </div>
+
+  <div class="tab-content active" id="tab-csv">
+    <p style="font-size:12px;color:#7A9488;margin-bottom:12px;">Upload a CSV from the chain's website (e.g. Kwik Trip store list)</p>
+    <input type="file" id="csv-file" accept=".csv" onchange="loadCSV(this)">
+    <div id="file-stats" style="display:none;">
+      <div class="stat-row">
+        <div class="stat"><div class="stat-num" id="stat-total">0</div><div class="stat-label">Total rows</div></div>
+        <div class="stat"><div class="stat-num" id="stat-valid">0</div><div class="stat-label">Valid stores</div></div>
+        <div class="stat"><div class="stat-num" id="stat-skip">0</div><div class="stat-label">Skipped</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="tab-osm">
+    <p style="font-size:12px;color:#7A9488;margin-bottom:12px;">Fetch locations from OpenStreetMap — free, no API key. Click a chain to load:</p>
+    <div id="chain-buttons">
+      <span class="chain-btn" onclick="fetchOSM(this, &quot;Casey's&quot;, &quot;Casey's General Stores&quot;)">Casey's</span>
+      <span class="chain-btn" onclick="fetchOSM(this, &quot;Circle K&quot;, &quot;Circle K&quot;)">Circle K</span>
+      <span class="chain-btn" onclick="fetchOSM(this, &quot;7-Eleven&quot;, &quot;7-Eleven&quot;)">7-Eleven</span>
+      <span class="chain-btn" onclick="fetchOSM(this, &quot;Sheetz&quot;, &quot;Sheetz&quot;)">Sheetz</span>
+      <span class="chain-btn" onclick="fetchOSM(this, &quot;Wawa&quot;, &quot;Wawa&quot;)">Wawa</span>
+      <span class="chain-btn" onclick="fetchOSM(this, &quot;QuikTrip&quot;, &quot;QuikTrip&quot;)">QuikTrip</span>
+      <span class="chain-btn" onclick="fetchOSM(this, &quot;Maverik&quot;, &quot;Maverik&quot;)">Maverik</span>
+      <span class="chain-btn" onclick="fetchOSM(this, &quot;Pilot Flying J&quot;, &quot;Pilot Flying J&quot;)">Pilot Flying J</span>
+      <span class="chain-btn" onclick="fetchOSM(this, &quot;Love's&quot;, &quot;Love's Travel Stop&quot;)">Love's</span>
+      <span class="chain-btn" onclick="fetchOSM(this, &quot;Pump &amp; Pantry&quot;, &quot;Pump & Pantry&quot;)">Pump & Pantry</span>
+      <span class="chain-btn" onclick="fetchOSM(this, &quot;Casey's&quot;, &quot;Casey's&quot;)">Casey's (alt)</span>
+    </div>
+    <div id="osm-stats" style="display:none;margin-top:16px;">
+      <div class="stat-row">
+        <div class="stat"><div class="stat-num" id="osm-count">0</div><div class="stat-label">Stores found</div></div>
+        <div class="stat"><div class="stat-num" id="osm-chain">–</div><div class="stat-label">Chain</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card" id="import-card" style="display:none;">
+  <h2>⚙️ Import</h2>
+  <div class="warning">⚠️ Duplicates (same lat/lng) will be skipped automatically.</div>
+  <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+  <p id="progress-text" style="font-size:12px;color:#7A9488;margin-bottom:12px;"></p>
+  <button class="btn-primary" id="import-btn" onclick="startImport()">▶ Start Import</button>
+</div>
+
+<div class="card">
+  <h2>📋 Log</h2>
+  <div class="log" id="log"></div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://xgngjwjnyemgfblbqxqj.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhnbmdqd2pueWVtZ2ZibGJxeHFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzNjk3NDUsImV4cCI6MjA5MTk0NTc0NX0.TjSdMpDewqYe9AoECIRwMie0d2UoiaJbHfXX_NeM8dw';
+const VALID_PREFIXES = ['KWIK TRIP', 'KWIK STAR', 'STOP N GO', 'TOBACCO OUTLET PLUS', 'KWIK SPIRITS'];
+
+let validStores = [];
+let importing = false;
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', (i===0&&tab==='csv')||(i===1&&tab==='osm')));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+}
+
+function log(msg, type='info') {
+  const el = document.getElementById('log');
+  const div = document.createElement('div');
+  div.className = 'log-entry log-' + type;
+  div.textContent = new Date().toLocaleTimeString() + ' — ' + msg;
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+}
+
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  const headers = lines[0].split(',').map(h => h.replace(/"/g,'').trim());
+  return lines.slice(1).map(line => {
+    const vals=[]; let cur='', inQ=false;
+    for (const c of line) {
+      if (c==='"') inQ=!inQ;
+      else if (c===','&&!inQ) { vals.push(cur); cur=''; }
+      else cur+=c;
+    }
+    vals.push(cur);
+    const obj={};
+    headers.forEach((h,i) => obj[h]=(vals[i]||'').trim());
+    return obj;
+  });
+}
+
+function toTitleCase(str) { return str.toLowerCase().replace(/\b\w/g,c=>c.toUpperCase()); }
+
+function loadCSV(input) {
+  const file = input.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const rows = parseCSV(e.target.result);
+    const skipped=[]; validStores=[];
+    for (const row of rows) {
+      const name = (row['Store Name']||'').toUpperCase();
+      if (!VALID_PREFIXES.some(p=>name.startsWith(p))) { skipped.push(row); continue; }
+      if (!row['Latitude']||!row['Longitude']) { skipped.push(row); continue; }
+      let chain='Kwik Trip';
+      if (name.startsWith('STOP N GO')) chain='Stop-N-Go';
+      else if (name.startsWith('TOBACCO OUTLET PLUS')) chain='Tobacco Outlet Plus';
+      else if (name.startsWith('KWIK SPIRITS')) chain='Kwik Spirits';
+      const address=[row['Address'],row['City'],row['State'],row['Zip']].filter(Boolean).join(', ')+', USA';
+      validStores.push({ name:toTitleCase(row['Store Name']), chain, address, city:row['City'], state:row['State'], zip:row['Zip'], lat:parseFloat(row['Latitude']), lng:parseFloat(row['Longitude']) });
+    }
+    document.getElementById('stat-total').textContent=rows.length;
+    document.getElementById('stat-valid').textContent=validStores.length;
+    document.getElementById('stat-skip').textContent=skipped.length;
+    document.getElementById('file-stats').style.display='block';
+    document.getElementById('import-card').style.display='block';
+    log(`Loaded ${validStores.length} valid stores, skipped ${skipped.length}`, 'info');
+  };
+  reader.readAsText(file);
+}
+
+async function fetchOSM(btn, chainName, brandName) {
+  log(`Fetching ${chainName} from OpenStreetMap...`, 'info');
+  btn.textContent = '⏳ Loading...';
+  btn.style.pointerEvents = 'none';
+  validStores = [];
+
+  const query = `[out:json][timeout:180];
+area["ISO3166-1"="US"][admin_level=2]->.usa;
+(
+  node["brand"="${brandName}"](area.usa);
+  node["name"~"${brandName}",i]["amenity"~"fuel|convenience"](area.usa);
+  way["brand"="${brandName}"](area.usa);
+  way["name"~"${brandName}",i]["amenity"~"fuel|convenience"](area.usa);
+);
+out center;`;
+
+  try {
+    const resp = await fetch('https://overpass-api.de/api/interpreter', {
+      method: 'POST',
+      body: 'data=' + encodeURIComponent(query)
+    });
+    const data = await resp.json();
+    const elements = data.elements || [];
+    const seen = new Set();
+    for (const el of elements) {
+      const lat = el.lat || el.center?.lat;
+      const lng = el.lon || el.center?.lon;
+      if (!lat || !lng) continue;
+      const key = lat.toFixed(5)+','+lng.toFixed(5);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const tags = el.tags || {};
+      const name = tags.name || chainName;
+      const houseNo = tags['addr:housenumber'] || '';
+      const street = tags['addr:street'] || '';
+      const city = tags['addr:city'] || '';
+      const state = tags['addr:state'] || '';
+      const zip = tags['addr:postcode'] || '';
+      const streetFull = [houseNo, street].filter(Boolean).join(' ');
+      const address = [streetFull, city, state, zip].filter(Boolean).join(', ') + ', USA';
+      validStores.push({ name, chain: chainName, address, city, state, zip, lat, lng });
+    }
+    document.getElementById('osm-count').textContent = validStores.length;
+    document.getElementById('osm-chain').textContent = chainName;
+    document.getElementById('osm-stats').style.display = 'block';
+    document.getElementById('import-card').style.display = 'block';
+    log(`Found ${validStores.length} ${chainName} locations on OpenStreetMap`, 'info');
+    btn.textContent = `✓ ${chainName} (${validStores.length})`;
+    btn.style.background = '#1D9E75';
+    btn.style.color = 'white';
+    btn.style.borderColor = '#1D9E75';
+  } catch(e) {
+    log(`Error: ${e.message}`, 'err');
+    btn.textContent = chainName;
+    btn.style.pointerEvents = 'auto';
+  }
+}
+
+async function sb(path, opts={}) {
+  const headers = { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer '+SUPABASE_KEY, 'Content-Type': 'application/json' };
+  if (opts.prefer) headers['Prefer'] = opts.prefer;
+  const r = await fetch(SUPABASE_URL+'/rest/v1/'+path, { headers, method: opts.method||'GET', body: opts.body });
+  if (!r.ok) { const txt = await r.text(); throw new Error(txt); }
+  const txt = await r.text();
+  if (!txt) return [];
+  try { return JSON.parse(txt); } catch(e) { return []; }
+}
+
+async function startImport() {
+  if (importing || !validStores.length) { if(!validStores.length) log('No stores loaded', 'err'); return; }
+  importing = true;
+  const btn = document.getElementById('import-btn');
+  btn.disabled = true; btn.textContent = '⏳ Importing...';
+  let inserted=0, skipped=0, errors=0;
+  const total = validStores.length;
+  log(`Starting import of ${total} stores...`, 'info');
+
+  for (let i=0; i<validStores.length; i+=5) {
+    const batch = validStores.slice(i, i+5);
+    await Promise.all(batch.map(async store => {
+      try {
+        const existing = await sb(`stores?lat=eq.${store.lat}&lng=eq.${store.lng}&select=id&limit=1`);
+        if (existing && existing.length>0) { skipped++; log(`↷ Exists: ${store.name} — ${store.city}, ${store.state}`, 'skip'); return; }
+        await sb('stores', { method:'POST', prefer:'return=minimal', body:JSON.stringify(store) });
+        inserted++;
+        log(`✓ ${store.name} — ${store.city||'?'}, ${store.state||'?'}`, 'ok');
+      } catch(e) { errors++; log(`✗ ${store.name}: ${e.message.slice(0,80)}`, 'err'); }
+    }));
+    const done = Math.min(i+5, total);
+    document.getElementById('progress-fill').style.width = (done/total*100)+'%';
+    document.getElementById('progress-text').textContent = `${done}/${total} (${inserted} inserted, ${skipped} skipped, ${errors} errors)`;
+    await new Promise(r=>setTimeout(r,200));
+  }
+  log(`✅ Done! ${inserted} inserted, ${skipped} already existed, ${errors} errors`, 'info');
+  btn.textContent = '✅ Import Complete';
+  importing = false;
+}
+</script>
+</body>
+</html>
