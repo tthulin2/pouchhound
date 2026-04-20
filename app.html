@@ -71,6 +71,10 @@ html,body { height:100%; font-family:'DM Sans',sans-serif; background:var(--surf
 .brand-scroll::-webkit-scrollbar { display:none; }
 .brand-chip { flex-shrink:0; padding:5px 12px; border-radius:20px; font-size:12px; font-weight:500; cursor:pointer; border:1px solid var(--border); background:var(--white); color:var(--text-mid); transition:all 0.15s; white-space:nowrap; user-select:none; }
 .brand-chip.active { background:var(--green); color:white; border-color:var(--green); }
+.tier-chip { flex-shrink:0; padding:3px 9px; border-radius:20px; font-size:11px; font-weight:500; cursor:pointer; border:1px solid var(--border); background:var(--white); color:var(--text-muted); transition:all 0.15s; white-space:nowrap; user-select:none; }
+.tier-chip.active { background:var(--green-light); color:var(--green-dark); border-color:var(--green); }
+.tier-scroll { display:flex; gap:5px; overflow-x:auto; padding:4px 16px 6px; scrollbar-width:none; }
+.tier-scroll::-webkit-scrollbar { display:none; }
 
 /* VIEW TOGGLE */
 .view-toggle { display:flex; padding:7px 16px; background:var(--white); border-bottom:1px solid var(--border); flex-shrink:0; gap:6px; }
@@ -248,6 +252,15 @@ html,body { height:100%; font-family:'DM Sans',sans-serif; background:var(--surf
 
   <div class="brand-scroll" id="brand-scroll">
     <div class="brand-chip active" data-brand="ALL" onclick="toggleBrand(this)">All</div>
+  </div>
+
+  <div class="tier-scroll" id="tier-scroll">
+    <span class="tier-chip active" data-tier="shelf" onclick="toggleTierFilter(this)">Shelf (single)</span>
+    <span class="tier-chip active" data-tier="sale" onclick="toggleTierFilter(this)">Sale (single)</span>
+    <span class="tier-chip active" data-tier="rewards" onclick="toggleTierFilter(this)">Rewards (single)</span>
+    <span class="tier-chip active" data-tier="multican" onclick="toggleTierFilter(this)">Multi-can</span>
+    <span class="tier-chip active" data-tier="sale_multican" onclick="toggleTierFilter(this)">Sale multi-can</span>
+    <span class="tier-chip active" data-tier="rewards_multican" onclick="toggleTierFilter(this)">Rewards multi-can</span>
   </div>
 
   <div class="view-toggle">
@@ -475,6 +488,7 @@ let userLat = null, userLng = null;
 let radiusMiles = 5;
 let allStores = [], allBrands = [];
 let selectedBrands = new Set(['ALL']);
+let activeTiers = new Set(['shelf','sale','rewards','multican','sale_multican','rewards_multican']);
 let map = null, markers = [];
 let selectedStoreId = null, selectedBrandsForReport = new Set();
 let currentView = 'list';
@@ -529,6 +543,18 @@ function buildBrandSelectGrid() {
     btn.onclick = () => toggleBrandForReport(btn);
     grid.appendChild(btn);
   });
+}
+
+function toggleTierFilter(chip) {
+  const tier = chip.dataset.tier;
+  if (activeTiers.has(tier)) {
+    activeTiers.delete(tier);
+    chip.classList.remove('active');
+  } else {
+    activeTiers.add(tier);
+    chip.classList.add('active');
+  }
+  renderStores();
 }
 
 function toggleBrand(chip) {
@@ -705,12 +731,24 @@ async function discoverNearbyChains() {
 function getBrandName(id) { return (allBrands.find(x=>x.id===id)||{}).name||''; }
 function getBrandId(name) { return (allBrands.find(x=>x.name===name)||{}).id||null; }
 
+function getActiveBestPrice(p) {
+  // Calculate best price considering only active tiers
+  const candidates = [];
+  if (activeTiers.has('shelf') && p.shelf_price) candidates.push(p.shelf_price);
+  if (activeTiers.has('sale') && p.sale_price) candidates.push(p.sale_price);
+  if (activeTiers.has('rewards') && p.rewards_price) candidates.push(p.rewards_price);
+  if (activeTiers.has('multican') && p.multican_price_per_can) candidates.push(p.multican_price_per_can);
+  if (activeTiers.has('sale_multican') && p.sale_multican_price_per_can) candidates.push(p.sale_multican_price_per_can);
+  if (activeTiers.has('rewards_multican') && p.rewards_multican_price_per_can) candidates.push(p.rewards_multican_price_per_can);
+  return candidates.length ? Math.min(...candidates) : 999;
+}
+
 function getStoreBestPrice(store) {
   if (!store.prices?.length) return 999;
   const ids = selectedBrands.has('ALL') ? allBrands.map(b=>b.id) : [...selectedBrands].map(n=>getBrandId(n)).filter(Boolean);
   const relevant = store.prices.filter(p=>ids.includes(p.brand_id));
   if (!relevant.length) return 999;
-  return Math.min(...relevant.map(p=>p.best_price||999));
+  return Math.min(...relevant.map(p=>getActiveBestPrice(p)));
 }
 
 function renderStores() {
@@ -756,14 +794,14 @@ function renderStores() {
       }
       pricesToShow.forEach(p => {
         const bName = getBrandName(p.brand_id);
-        const bp = p.best_price;
+        const bp = getActiveBestPrice(p);
         const pills = [];
-        if (p.shelf_price) pills.push(`<span class="pill pill-shelf">Shelf (single) $${Number(p.shelf_price).toFixed(2)}</span>`);
-        if (p.sale_price) pills.push(`<span class="pill pill-sale">Sale (single) $${Number(p.sale_price).toFixed(2)}</span>`);
-        if (p.rewards_price) pills.push(`<span class="pill pill-rewards">Rewards (single) $${Number(p.rewards_price).toFixed(2)}</span>`);
-        if (p.multican_price_per_can) pills.push(`<span class="pill pill-multi">${p.multican_qty}-can $${Number(p.multican_price_per_can).toFixed(2)}/can</span>`);
-        if (p.sale_multican_price_per_can) pills.push(`<span class="pill pill-sale-multi">Sale (multi-can) ${p.sale_multican_qty} $${Number(p.sale_multican_price_per_can).toFixed(2)}/can</span>`);
-        if (p.rewards_multican_price_per_can) pills.push(`<span class="pill pill-combo">Rewards (multi-can) ${p.rewards_multican_qty}+ $${Number(p.rewards_multican_price_per_can).toFixed(2)}/can</span>`);
+        if (p.shelf_price && activeTiers.has('shelf')) pills.push(`<span class="pill pill-shelf">Shelf (single) $${Number(p.shelf_price).toFixed(2)}</span>`);
+        if (p.sale_price && activeTiers.has('sale')) pills.push(`<span class="pill pill-sale">Sale (single) $${Number(p.sale_price).toFixed(2)}</span>`);
+        if (p.rewards_price && activeTiers.has('rewards')) pills.push(`<span class="pill pill-rewards">Rewards (single) $${Number(p.rewards_price).toFixed(2)}</span>`);
+        if (p.multican_price_per_can && activeTiers.has('multican')) pills.push(`<span class="pill pill-multi">${p.multican_qty}-can $${Number(p.multican_price_per_can).toFixed(2)}/can</span>`);
+        if (p.sale_multican_price_per_can && activeTiers.has('sale_multican')) pills.push(`<span class="pill pill-sale-multi">Sale (multi-can) ${p.sale_multican_qty} $${Number(p.sale_multican_price_per_can).toFixed(2)}/can</span>`);
+        if (p.rewards_multican_price_per_can && activeTiers.has('rewards_multican')) pills.push(`<span class="pill pill-combo">Rewards (multi-can) ${p.rewards_multican_qty}+ $${Number(p.rewards_multican_price_per_can).toFixed(2)}/can</span>`);
         const shelfStr = p.shelf_price && bp < p.shelf_price ? `<span class="brand-shelf">$${Number(p.shelf_price).toFixed(2)}</span>` : '';
         const priceStr = bp && bp<999 ? `$${Number(bp).toFixed(2)}` : '–';
         const ago = p.updated_at ? timeAgo(p.updated_at) : '';
