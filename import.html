@@ -87,11 +87,12 @@
 </div>
 
 <div class="card" id="import-card" style="display:none;">
-  <h2>⚙️ Import</h2>
-  <div class="warning">⚠️ Duplicates (same lat/lng) will be skipped automatically.</div>
+  <h2>⚙️ Action</h2>
+  <div class="warning">⚠️ Review the CSV before importing. Remove any rows that don't belong.</div>
   <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
   <p id="progress-text" style="font-size:12px;color:#7A9488;margin-bottom:12px;"></p>
-  <button class="btn-primary" id="import-btn" onclick="startImport()">▶ Start Import</button>
+  <button class="btn-primary" id="download-btn" onclick="downloadCSV()" style="background:#185FA5;">⬇ Download CSV for Review</button>
+  <button class="btn-primary" id="import-btn" onclick="startImport()">▶ Import to Supabase</button>
 </div>
 
 <div class="card">
@@ -174,7 +175,28 @@ async function fetchOSM(btn, chainName, brandName) {
   btn.style.pointerEvents = 'none';
   validStores = [];
 
-  const query = `[out:json][timeout:180];
+  // Build query based on chain
+  let query;
+  if (chainName === "Casey's") {
+    query = `[out:json][timeout:180];
+area["ISO3166-1"="US"][admin_level=2]->.usa;
+(
+  node["brand"="Casey's General Stores"](area.usa);
+  node["brand"="Casey's"](area.usa);
+  node["operator"="Casey's General Stores"](area.usa);
+  node["name"="Casey's General Store"](area.usa);
+  node["name"="Casey's"](area.usa);
+  way["brand"="Casey's General Stores"](area.usa);
+  way["brand"="Casey's"](area.usa);
+  way["operator"="Casey's General Stores"](area.usa);
+  way["name"="Casey's General Store"](area.usa);
+  way["name"="Casey's"](area.usa);
+  relation["brand"="Casey's General Stores"](area.usa);
+  relation["brand"="Casey's"](area.usa);
+);
+out center;`;
+  } else {
+    query = `[out:json][timeout:180];
 area["ISO3166-1"="US"][admin_level=2]->.usa;
 (
   node["brand"="${brandName}"](area.usa);
@@ -183,6 +205,7 @@ area["ISO3166-1"="US"][admin_level=2]->.usa;
   way["name"~"${brandName}",i]["amenity"~"fuel|convenience"](area.usa);
 );
 out center;`;
+  }
 
   try {
     const resp = await fetch('https://overpass-api.de/api/interpreter', {
@@ -234,6 +257,21 @@ async function sb(path, opts={}) {
   const txt = await r.text();
   if (!txt) return [];
   try { return JSON.parse(txt); } catch(e) { return []; }
+}
+
+function downloadCSV() {
+  if (!validStores.length) { log('No stores loaded', 'err'); return; }
+  const headers = ['name','chain','address','city','state','zip','lat','lng'];
+  const rows = validStores.map(s => headers.map(h => `"${(s[h]||'').toString().replace(/"/g,'""')}"`).join(','));
+  const csv = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = (validStores[0]?.chain || 'stores').replace(/[^a-z0-9]/gi,'_') + '_locations.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+  log(`Downloaded ${validStores.length} stores as CSV`, 'info');
 }
 
 async function startImport() {
