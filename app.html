@@ -531,6 +531,7 @@ let radiusMiles = 5;
 let allStores = [], allBrands = [];
 let selectedBrands = new Set(['ALL']);
 let activeTiers = new Set(['shelf','sale','rewards','multican','sale_multican','rewards_multican']);
+let filterJustClosed = false;
 let map = null, markers = [];
 let selectedStoreId = null, selectedBrandsForReport = new Set();
 let currentView = 'list';
@@ -601,6 +602,8 @@ function closeFilterDropdown(e) {
   const btn = document.getElementById('filter-btn');
   if (!dd.contains(e.target) && !btn.contains(e.target)) {
     dd.classList.remove('open');
+    filterJustClosed = true;
+    setTimeout(() => { filterJustClosed = false; }, 300);
     e.stopPropagation();
   }
 }
@@ -935,6 +938,7 @@ function renderStores() {
     card.innerHTML = `<div class="store-card-header"><div><div class="store-name">${store.name}</div><div class="store-meta">${[distStr,addrStr].filter(Boolean).join(' · ')}</div></div>${isFirst?'<div class="best-badge">Best price</div>':''}</div>${brandsHTML}${rewardsHTML}`;
     card.onclick = (e) => {
       // Don't navigate to map if clicking interactive elements or filter dropdown
+      if (filterJustClosed) return;
       if (e.target.closest('button') || e.target.closest('a') || e.target.closest('.filter-dropdown') || e.target.closest('input') || e.target.closest('label')) return;
       focusStoreOnMap(store);
     };
