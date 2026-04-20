@@ -215,13 +215,12 @@ async function fetchOSM(btn, chainName, brandName) {
 );
 out center;`;
   } else {
-    query = `[out:json][timeout:180];
-area["ISO3166-1"="US"][admin_level=2]->.usa;
+    query = `[out:json][timeout:250];
 (
-  node["brand"="${brandName}"](area.usa);
-  node["name"~"${brandName}",i]["amenity"~"fuel|convenience"](area.usa);
-  way["brand"="${brandName}"](area.usa);
-  way["name"~"${brandName}",i]["amenity"~"fuel|convenience"](area.usa);
+  node["brand"="${brandName}"][bbox=24,-125,50,-65];
+  node["name"="${brandName}"]["amenity"~"fuel|convenience"][bbox=24,-125,50,-65];
+  way["brand"="${brandName}"][bbox=24,-125,50,-65];
+  way["name"="${brandName}"]["amenity"~"fuel|convenience"][bbox=24,-125,50,-65];
 );
 out center;`;
   }
