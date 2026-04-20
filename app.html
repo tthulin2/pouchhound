@@ -1209,6 +1209,18 @@ function toggleBrandForReport(btn) {
 }
 
 function buildPriceEntries() {
+  // Save current entered values before rebuilding
+  const saved = {};
+  selectedBrandsForReport.forEach(brandId => {
+    saved[brandId] = {
+      s: { checked: document.getElementById(`s-c-${brandId}`)?.checked, val: document.getElementById(`s-${brandId}`)?.value, cents: document.getElementById(`s-${brandId}`)?.dataset.cents },
+      sl: { checked: document.getElementById(`sl-c-${brandId}`)?.checked, val: document.getElementById(`sl-${brandId}`)?.value, cents: document.getElementById(`sl-${brandId}`)?.dataset.cents },
+      r: { checked: document.getElementById(`r-c-${brandId}`)?.checked, val: document.getElementById(`r-${brandId}`)?.value, cents: document.getElementById(`r-${brandId}`)?.dataset.cents },
+      m: { checked: document.getElementById(`m-c-${brandId}`)?.checked, val: document.getElementById(`m-${brandId}`)?.value, cents: document.getElementById(`m-${brandId}`)?.dataset.cents, qty: document.getElementById(`mq-${brandId}`)?.value },
+      sm: { checked: document.getElementById(`sm-c-${brandId}`)?.checked, val: document.getElementById(`sm-${brandId}`)?.value, cents: document.getElementById(`sm-${brandId}`)?.dataset.cents, qty: document.getElementById(`smq-${brandId}`)?.value },
+      rc: { checked: document.getElementById(`rc-c-${brandId}`)?.checked, val: document.getElementById(`rc-${brandId}`)?.value, cents: document.getElementById(`rc-${brandId}`)?.dataset.cents, qty: document.getElementById(`rcq-${brandId}`)?.value },
+    };
+  });
   const c = document.getElementById('price-entries');
   c.innerHTML = selectedBrandsForReport.size > 0 ? '<div style="background:#FFF8E1;border:1px solid #FFE082;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:#7B5800;display:flex;align-items:center;gap:6px;"><span style="font-size:14px;">⚠️</span><strong>Enter shelf prices as shown on tag — before tax</strong></div>' : '';
   selectedBrandsForReport.forEach(brandId => {
@@ -1223,6 +1235,32 @@ function buildPriceEntries() {
       <div class="price-tier-row"><input type="checkbox" class="tier-check" id="sm-c-${brandId}" onchange="toggleTier(this,'sm-${brandId}','smq-${brandId}')"><div class="tier-dot" style="background:#C39BD3;"></div><label class="tier-label" for="sm-c-${brandId}">Sale multi-can</label><select class="qty-select" id="smq-${brandId}" disabled>${[2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}">${n} for</option>`).join('')}</select><input type="number" class="tier-input" id="sm-${brandId}" placeholder="0.00" step="0.01" min="0" inputmode="numeric" onkeydown="calcInput(event)" data-cents="0" disabled></div>
       <div class="price-tier-row"><input type="checkbox" class="tier-check" id="rc-c-${brandId}" onchange="toggleTier(this,'rc-${brandId}','rcq-${brandId}')"><div class="tier-dot" style="background:#B5D4F4;"></div><label class="tier-label" for="rc-c-${brandId}">Rewards (multi-can)</label><select class="qty-select" id="rcq-${brandId}" disabled>${[2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}">${n} for</option>`).join('')}</select><input type="number" class="tier-input" id="rc-${brandId}" placeholder="0.00" step="0.01" min="0" inputmode="numeric" onkeydown="calcInput(event)" data-cents="0" disabled></div>`;
     c.appendChild(block);
+    // Restore saved values if they exist
+    const s = saved[brandId];
+    if (s) {
+      const restore = (prefix, tierKey, qtyKey) => {
+        const t = s[tierKey];
+        if (!t || !t.checked) return;
+        const cb = document.getElementById(`${prefix}-c-${brandId}`);
+        const inp = document.getElementById(`${prefix}-${brandId}`);
+        if (cb && inp) {
+          cb.checked = true;
+          inp.disabled = false;
+          inp.value = t.val || '';
+          inp.dataset.cents = t.cents || '0';
+          if (qtyKey && t.qty) {
+            const qty = document.getElementById(`${qtyKey}-${brandId}`);
+            if (qty) { qty.disabled = false; qty.value = t.qty; }
+          }
+        }
+      };
+      restore('s', 's');
+      restore('sl', 'sl');
+      restore('r', 'r');
+      restore('m', 'm', 'mq');
+      restore('sm', 'sm', 'smq');
+      restore('rc', 'rc', 'rcq');
+    }
   });
 }
 
