@@ -178,21 +178,16 @@ async function fetchOSM(btn, chainName, brandName) {
   // Build query based on chain
   let query;
   if (chainName === "Casey's") {
-    query = `[out:json][timeout:180];
-area["ISO3166-1"="US"][admin_level=2]->.usa;
+    query = `[out:json][timeout:250];
 (
-  node["brand"="Casey's General Stores"](area.usa);
-  node["brand"="Casey's"](area.usa);
-  node["operator"="Casey's General Stores"](area.usa);
-  node["name"="Casey's General Store"](area.usa);
-  node["name"="Casey's"](area.usa);
-  way["brand"="Casey's General Stores"](area.usa);
-  way["brand"="Casey's"](area.usa);
-  way["operator"="Casey's General Stores"](area.usa);
-  way["name"="Casey's General Store"](area.usa);
-  way["name"="Casey's"](area.usa);
-  relation["brand"="Casey's General Stores"](area.usa);
-  relation["brand"="Casey's"](area.usa);
+  node["brand"="Casey's General Stores"][bbox=24,-125,50,-65];
+  node["brand"="Casey's"][bbox=24,-125,50,-65];
+  node["name"="Casey's General Store"][bbox=24,-125,50,-65];
+  node["name"="Casey's"][bbox=24,-125,50,-65];
+  way["brand"="Casey's General Stores"][bbox=24,-125,50,-65];
+  way["brand"="Casey's"][bbox=24,-125,50,-65];
+  way["name"="Casey's General Store"][bbox=24,-125,50,-65];
+  way["name"="Casey's"][bbox=24,-125,50,-65];
 );
 out center;`;
   } else {
