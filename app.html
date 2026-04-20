@@ -1254,30 +1254,24 @@ async function submitPrices() {
               return newVal != null && oldVal != null && parseFloat(newVal) !== parseFloat(oldVal);
             });
             if (changedCategories.length > 0) {
-              const chainStores = await sb('stores?chain=eq.' + encodeURIComponent(reportStore.chain) + '&state=eq.' + reportStoreState + '&select=id');
-              for (const cs of chainStores) {
-                if (String(cs.id) === String(store_id)) continue;
-                const csFields = [...new Set(changedCategories.map(c => c.old))].join(',');
-                const csPrice = await sb('prices?store_id=eq.' + cs.id + '&brand_id=eq.' + bid + '&select=' + csFields + '&limit=1');
-                if (!csPrice || !csPrice.length) continue;
-                const flagUpdate = {};
-                for (const cat of changedCategories) {
-                  const csVal = csPrice[0][cat.old];
-                  if (csVal == null) continue;
-                  const newVal = parseFloat(report[cat.report]);
-                  flagUpdate[cat.flag] = true;
-                  flagUpdate[cat.pending] = newVal;
-                  flagUpdate[cat.dir] = newVal > parseFloat(csVal) ? 'up' : 'down';
-                }
-                if (Object.keys(flagUpdate).length > 0) {
-                  flagUpdate.price_change_reported_at = new Date().toISOString();
-                  await sb('prices?store_id=eq.' + cs.id + '&brand_id=eq.' + bid, {
-                    method: 'PATCH', prefer: 'return=minimal',
-                    body: JSON.stringify(flagUpdate)
-                  });
-                }
+              // Build the flag update object
+              const flagUpdate = {};
+              for (const cat of changedCategories) {
+                const newVal = parseFloat(report[cat.report]);
+                flagUpdate[cat.flag] = true;
+                flagUpdate[cat.pending] = newVal;
+                flagUpdate[cat.dir] = 'up'; // direction determined per-store in DB function
               }
-              console.log('Flagged chain stores for categories:', changedCategories.map(c => c.report));
+              // Single RPC call flags all chain stores at once
+              await sb('rpc/flag_chain_price_changes', {
+                method: 'POST',
+                body: JSON.stringify({
+                  p_store_id: store_id,
+                  p_brand_id: bid,
+                  p_updates: flagUpdate
+                })
+              });
+              console.log('Flagged chain stores via RPC for categories:', changedCategories.map(c => c.report));
             }
           }
         } else {
