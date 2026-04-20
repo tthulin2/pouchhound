@@ -552,7 +552,7 @@ function toggleBrand(chip) {
 function setRadius(miles, btn) {
   radiusMiles = Math.min(miles || 5, 25);
   document.querySelectorAll('.radius-preset').forEach(b => b.classList.remove('active'));
-  document.getElementById('custom-radius-btn').classList.remove('active');
+  const customBtn = document.getElementById('custom-radius-btn'); if (customBtn) customBtn.classList.remove('active');
   if (btn) btn.classList.add('active');
   if (userLat) loadNearbyStores();
 }
