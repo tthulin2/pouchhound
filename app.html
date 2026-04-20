@@ -341,6 +341,10 @@ html,body { height:100%; font-family:'DM Sans',sans-serif; background:var(--surf
 <div class="popup-overlay" id="add-store-popup" onclick="if(event.target===this)closeAddStore()">
   <div class="add-store-box">
     <h3>Add a Store</h3>
+    <div style="display:flex;align-items:flex-start;gap:8px;background:#FFF8E1;border:1px solid #FFE082;border-radius:8px;padding:8px 12px;margin-bottom:12px;">
+      <span style="font-size:14px;">💡</span>
+      <div style="font-size:12px;color:#7B5800;line-height:1.5;">Type a store name and tap <strong>Search</strong> — then select your store from the list.</div>
+    </div>
     <div class="add-store-field">
       <label>Store Name *</label>
       <div style="display:flex;gap:6px;"><input type="text" id="new-store-name" placeholder="e.g. Casey's General Store" autocomplete="off" onkeydown="if(event.key==='Enter')searchPlacesForStore(document.getElementById('new-store-name').value)" style="flex:1;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:'DM Sans',sans-serif;outline:none;"><button onclick="searchPlacesForStore(document.getElementById('new-store-name').value)" style="padding:9px 14px;background:var(--green);color:white;border:none;border-radius:8px;font-size:13px;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;white-space:nowrap;">Search</button></div>
@@ -369,13 +373,6 @@ html,body { height:100%; font-family:'DM Sans',sans-serif; background:var(--surf
     <button class="modal-close" onclick="closeReportModal()">✕</button>
     <div class="modal-title">Report Price</div>
     <div class="success-msg" id="success-msg">✓ Prices submitted! Thank you.</div>
-    <div class="disclaimer-text">
-      <div style="display:flex;align-items:flex-start;gap:8px;">
-        <span style="font-size:14px;">💡</span>
-        <div style="font-size:14px;color:var(--text-mid);line-height:1.6;">Type a store name and tap <strong>Search</strong> — select your store from the list. Don't see it? Use the <strong>+ Can't find your store?</strong> button below to add it.</div>
-      </div>
-    </div>
-
     <div class="form-section">
       <label class="form-label">Store</label>
       <input type="text" class="store-search" id="store-search" placeholder="Search store name..." oninput="searchStores(this.value)" autocomplete="off">
