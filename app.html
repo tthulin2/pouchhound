@@ -878,24 +878,37 @@ function renderStores() {
         // Inline price change warnings for this brand - one per changed category
         let brandWarning = '';
         const WARNING_CATS = [
-          { flag: 'shelf_change_flagged',           pending: 'pending_shelf_price',          dir: 'shelf_change_direction',           current: 'shelf_price',           label: 'shelf price' },
-          { flag: 'sale_change_flagged',            pending: 'pending_sale_price',           dir: 'sale_change_direction',            current: 'sale_price',            label: 'sale price' },
-          { flag: 'rewards_change_flagged',         pending: 'pending_rewards_price',        dir: 'rewards_change_direction',         current: 'rewards_price',         label: 'rewards price' },
-          { flag: 'multican_change_flagged',        pending: 'pending_multican_price',       dir: 'multican_change_direction',        current: 'multican_total',        label: 'multi-can price' },
-          { flag: 'sale_multican_change_flagged',   pending: 'pending_sale_multican_price',  dir: 'sale_multican_change_direction',   current: 'sale_multican_total',   label: 'sale multi-can price' },
-          { flag: 'rewards_multican_change_flagged',pending: 'pending_rewards_multican_price',dir: 'rewards_multican_change_direction',current: 'rewards_multican_total',label: 'rewards multi-can price' },
+          { flag: 'shelf_change_flagged',           pending: 'pending_shelf_price',          dir: 'shelf_change_direction',           current: 'shelf_price',           label: 'shelf price',           qty: null },
+          { flag: 'sale_change_flagged',            pending: 'pending_sale_price',           dir: 'sale_change_direction',            current: 'sale_price',            label: 'sale price',            qty: null },
+          { flag: 'rewards_change_flagged',         pending: 'pending_rewards_price',        dir: 'rewards_change_direction',         current: 'rewards_price',         label: 'rewards price',         qty: null },
+          { flag: 'multican_change_flagged',        pending: 'pending_multican_price',       dir: 'multican_change_direction',        current: 'multican_total',        label: 'multi-can price',       qty: 'multican_qty' },
+          { flag: 'sale_multican_change_flagged',   pending: 'pending_sale_multican_price',  dir: 'sale_multican_change_direction',   current: 'sale_multican_total',   label: 'sale multi-can price',  qty: 'sale_multican_qty' },
+          { flag: 'rewards_multican_change_flagged',pending: 'pending_rewards_multican_price',dir: 'rewards_multican_change_direction',current: 'rewards_multican_total',label: 'rewards multi-can price',qty: 'rewards_multican_qty' },
         ];
         for (const wcat of WARNING_CATS) {
           if (!p[wcat.flag] || p[wcat.current] == null) continue;
           const pendingVal = p[wcat.pending];
           if (pendingVal == null) continue;
-          const wp = '$' + Number(pendingVal).toFixed(2);
+          // For multi-can, show per-can price and qty
+          let wp, currentVal, catLabel;
+          if (wcat.qty && p[wcat.qty]) {
+            const qty = p[wcat.qty];
+            const pendingPerCan = pendingVal / qty;
+            const currentPerCan = p[wcat.current] / qty;
+            wp = '$' + Number(pendingPerCan).toFixed(2) + '/can';
+            currentVal = currentPerCan;
+            catLabel = wcat.label.replace('price', '(' + qty + '-can)');
+          } else {
+            wp = '$' + Number(pendingVal).toFixed(2);
+            currentVal = p[wcat.current];
+            catLabel = wcat.label;
+          }
           const direction = pendingVal < p[wcat.current] ? 'down' : 'up';
           const dirWord = direction === 'down' ? 'lower' : 'higher';
           const dirArrow = direction === 'down' ? '↓' : '↑';
           const warningId = 'warn-' + store.id + '-' + p.brand_id + '-' + wcat.flag;
           brandWarning += '<div class="price-change-warning" id="' + warningId + '">' +
-            '<div class="warn-text">' + dirArrow + ' ' + bName + ' ' + wcat.label + ' may be ' + dirWord + ' (' + wp + ') here</div>' +
+            '<div class="warn-text">' + dirArrow + ' ' + bName + ' ' + catLabel + ' may be ' + dirWord + ' (' + wp + ') here</div>' +
             '<div style="display:flex;gap:5px;">' +
             '<button class="confirm-new-btn" data-store="' + store.id + '" data-brand="' + p.brand_id + '" data-price="' + pendingVal + '" data-direction="' + direction + '" data-category="' + wcat.flag + '">Yes, ' + dirWord + '</button>' +
             '<button class="confirm-old-btn" data-store="' + store.id + '" data-brand="' + p.brand_id + '" data-price="' + pendingVal + '" data-direction="' + direction + '" data-category="' + wcat.flag + '">No, same</button>' +
