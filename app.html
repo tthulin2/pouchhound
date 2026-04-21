@@ -1386,7 +1386,9 @@ async function submitPrices() {
       try {
         const existing = await sb('prices?store_id=eq.' + report.store_id + '&brand_id=eq.' + parseInt(report.brand_id) +
           '&select=id,shelf_price,sale_price,rewards_price,multican_total,sale_multican_total,rewards_multican_total&limit=1');
-        const { store_id, brand_id, ...updateFields } = report;
+        const { store_id, brand_id, ...allFields } = report;
+        // Only include non-null fields to avoid overwriting existing data
+        const updateFields = Object.fromEntries(Object.entries(allFields).filter(([k,v]) => v !== null && v !== undefined));
         updateFields.updated_at = new Date().toISOString();
         const bid = parseInt(brand_id);
         if (existing && existing.length > 0) {
