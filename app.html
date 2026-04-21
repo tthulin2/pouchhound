@@ -1575,24 +1575,17 @@ async function submitExpiredDeals() {
   const btn = document.getElementById('expired-submit-btn');
   btn.disabled = true; btn.textContent = 'Flagging...';
   try {
-    const store = allStores.find(s => String(s.id) === String(expiredModalStoreId));
-    let storeState = store?.state;
-    if (!storeState && store?.address) {
-      const m = store.address.match(/,\s*([A-Z]{2})\s+\d{5}/);
-      if (m) storeState = m[1];
-    }
     const flagUpdate = {};
     for (const cb of checked) flagUpdate[cb.value] = true;
-    // Flag all same-chain same-state stores
-    if (store?.chain && storeState) {
-      const chainStores = await sb('stores?chain=eq.' + encodeURIComponent(store.chain) + '&state=eq.' + storeState + '&select=id');
-      for (const cs of chainStores) {
-        await sb('prices?store_id=eq.' + cs.id + '&brand_id=eq.' + expiredModalBrandId, {
-          method: 'PATCH', prefer: 'return=minimal',
-          body: JSON.stringify(flagUpdate)
-        });
-      }
-    }
+    // Single RPC call flags all chain stores at once
+    await sb('rpc/flag_chain_expired_deals', {
+      method: 'POST',
+      body: JSON.stringify({
+        p_store_id: expiredModalStoreId,
+        p_brand_id: expiredModalBrandId,
+        p_updates: flagUpdate
+      })
+    });
     showToast('✓ Flagged — a second user will confirm');
     closeExpiredModal();
     discoveryRun = false;
@@ -1600,6 +1593,7 @@ async function submitExpiredDeals() {
   } catch(e) {
     console.error('submitExpiredDeals error:', e);
     showToast('Error — try again');
+  } finally {
     btn.disabled = false; btn.textContent = 'Flag Selected as Expired';
   }
 }
