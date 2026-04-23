@@ -271,7 +271,7 @@ html,body { height:100%; font-family:'DM Sans',sans-serif; background:var(--surf
       <div class="filter-dropdown-row"><input type="checkbox" id="ft-shelf" checked onchange="toggleTierFilter('shelf', event)"> <label for="ft-shelf" style="cursor:pointer;">Shelf (single)</label></div>
       <div class="filter-dropdown-row"><input type="checkbox" id="ft-sale" checked onchange="toggleTierFilter('sale', event)"> <label for="ft-sale" style="cursor:pointer;">Sale (single)</label></div>
       <div class="filter-dropdown-row"><input type="checkbox" id="ft-rewards" checked onchange="toggleTierFilter('rewards', event)"> <label for="ft-rewards" style="cursor:pointer;">Rewards (single)</label></div>
-      <div class="filter-dropdown-row"><input type="checkbox" id="ft-multican" checked onchange="toggleTierFilter('multican', event)"> <label for="ft-multican" style="cursor:pointer;">Multi-can (single)</label></div>
+      <div class="filter-dropdown-row"><input type="checkbox" id="ft-multican" checked onchange="toggleTierFilter('multican', event)"> <label for="ft-multican" style="cursor:pointer;">Multi-can</label></div>
       <div class="filter-dropdown-row"><input type="checkbox" id="ft-sale_multican" checked onchange="toggleTierFilter('sale_multican', event)"> <label for="ft-sale_multican" style="cursor:pointer;">Sale (multi-can)</label></div>
       <div class="filter-dropdown-row"><input type="checkbox" id="ft-rewards_multican" checked onchange="toggleTierFilter('rewards_multican', event)"> <label for="ft-rewards_multican" style="cursor:pointer;">Rewards (multi-can)</label></div>
     </div>
@@ -1268,15 +1268,15 @@ function buildPriceEntries() {
       <div class="price-tier-row"><input type="checkbox" class="tier-check" id="s-c-${brandId}" onchange="toggleTier(this,'s-${brandId}')"><div class="tier-dot" style="background:#ccc;"></div><label class="tier-label" for="s-c-${brandId}">Shelf (single)</label><input type="number" class="tier-input" id="s-${brandId}" placeholder="0.00" step="0.01" min="0" inputmode="numeric" onkeydown="calcInput(event)" data-cents="0" disabled></div>
       <div class="price-tier-row"><input type="checkbox" class="tier-check" id="sl-c-${brandId}" onchange="toggleTier(this,'sl-${brandId}')"><div class="tier-dot" style="background:#F1948A;"></div><label class="tier-label" for="sl-c-${brandId}">Sale (single)</label><input type="number" class="tier-input" id="sl-${brandId}" placeholder="0.00" step="0.01" min="0" inputmode="numeric" onkeydown="calcInput(event)" data-cents="0" disabled></div>
       <div class="price-tier-row"><input type="checkbox" class="tier-check" id="r-c-${brandId}" onchange="toggleTier(this,'r-${brandId}')"><div class="tier-dot" style="background:#9FE1CB;"></div><label class="tier-label" for="r-c-${brandId}">Rewards (single)</label><input type="number" class="tier-input" id="r-${brandId}" placeholder="0.00" step="0.01" min="0" inputmode="numeric" onkeydown="calcInput(event)" data-cents="0" disabled></div>
-      <div class="price-tier-row" style="opacity:0.5;pointer-events:none;"><div class="tier-dot" style="background:#FAC775;"></div><label class="tier-label">Shelf (multi-can)</label></div>
+      <div class="price-tier-row"><input type="checkbox" class="tier-check" id="mc-shelf-c-${brandId}" onchange="toggleMcTier(this,'${brandId}','shelf')"><div class="tier-dot" style="background:#FAC775;"></div><label class="tier-label" for="mc-shelf-c-${brandId}">Shelf (multi-can)</label></div>
       <div id="mc-deals-shelf-${brandId}"></div>
-      <button type="button" onclick="addMulticanDeal(${brandId},'shelf')" style="margin-left:24px;margin-bottom:4px;padding:3px 10px;border:1px dashed #FAC775;border-radius:6px;background:#FFF8E1;color:#7B5800;font-size:11px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">+ Add shelf multi-can deal</button>
-      <div class="price-tier-row" style="opacity:0.5;pointer-events:none;"><div class="tier-dot" style="background:#C39BD3;"></div><label class="tier-label">Sale (multi-can)</label></div>
+      <button type="button" id="mc-add-shelf-${brandId}" onclick="addMulticanDeal(${brandId},'shelf')" style="display:none;margin-left:24px;margin-bottom:4px;padding:3px 10px;border:1px dashed #FAC775;border-radius:6px;background:#FFF8E1;color:#7B5800;font-size:11px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">+ Add another shelf deal</button>
+      <div class="price-tier-row"><input type="checkbox" class="tier-check" id="mc-sale-c-${brandId}" onchange="toggleMcTier(this,'${brandId}','sale')"><div class="tier-dot" style="background:#C39BD3;"></div><label class="tier-label" for="mc-sale-c-${brandId}">Sale (multi-can)</label></div>
       <div id="mc-deals-sale-${brandId}"></div>
-      <button type="button" onclick="addMulticanDeal(${brandId},'sale')" style="margin-left:24px;margin-bottom:4px;padding:3px 10px;border:1px dashed #C39BD3;border-radius:6px;background:#F5EEF8;color:#6C3483;font-size:11px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">+ Add sale multi-can deal</button>
-      <div class="price-tier-row" style="opacity:0.5;pointer-events:none;"><div class="tier-dot" style="background:#B5D4F4;"></div><label class="tier-label">Rewards (multi-can)</label></div>
+      <button type="button" id="mc-add-sale-${brandId}" onclick="addMulticanDeal(${brandId},'sale')" style="display:none;margin-left:24px;margin-bottom:4px;padding:3px 10px;border:1px dashed #C39BD3;border-radius:6px;background:#F5EEF8;color:#6C3483;font-size:11px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">+ Add another sale deal</button>
+      <div class="price-tier-row"><input type="checkbox" class="tier-check" id="mc-rewards-c-${brandId}" onchange="toggleMcTier(this,'${brandId}','rewards')"><div class="tier-dot" style="background:#B5D4F4;"></div><label class="tier-label" for="mc-rewards-c-${brandId}">Rewards (multi-can)</label></div>
       <div id="mc-deals-rewards-${brandId}"></div>
-      <button type="button" onclick="addMulticanDeal(${brandId},'rewards')" style="margin-left:24px;margin-bottom:4px;padding:3px 10px;border:1px dashed #B5D4F4;border-radius:6px;background:#EAF4FE;color:#1A5276;font-size:11px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">+ Add rewards multi-can deal</button>`;
+      <button type="button" id="mc-add-rewards-${brandId}" onclick="addMulticanDeal(${brandId},'rewards')" style="display:none;margin-left:24px;margin-bottom:4px;padding:3px 10px;border:1px dashed #B5D4F4;border-radius:6px;background:#EAF4FE;color:#1A5276;font-size:11px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">+ Add another rewards deal</button>`;
     c.appendChild(block);
     // Restore saved values if they exist
     const s = saved[brandId];
@@ -1312,7 +1312,29 @@ function toggleTier(chk, inputId, qtyId) {
 }
 
 let mcDealCounter = 0;
-function removeMcDeal(btn) { btn.parentElement.remove(); }
+function removeMcDeal(btn) {
+  const row = btn.parentElement;
+  const container = row.parentElement;
+  row.remove();
+  // If no more rows, hide the add another button
+  const brandId = container.id.split('-').pop();
+  const tier = container.id.replace('mc-deals-', '').replace('-' + brandId, '');
+  const addBtn = document.getElementById('mc-add-' + tier + '-' + brandId);
+  if (addBtn && container.children.length === 0) addBtn.style.display = 'none';
+}
+
+function toggleMcTier(chk, brandId, tier) {
+  const container = document.getElementById('mc-deals-' + tier + '-' + brandId);
+  const addBtn = document.getElementById('mc-add-' + tier + '-' + brandId);
+  if (chk.checked) {
+    addMulticanDeal(brandId, tier);
+    if (addBtn) addBtn.style.display = 'inline-block';
+  } else {
+    if (container) container.innerHTML = '';
+    if (addBtn) addBtn.style.display = 'none';
+  }
+}
+
 function addMulticanDeal(brandId, tier) {
   const container = document.getElementById('mc-deals-' + tier + '-' + brandId);
   if (!container) return;
