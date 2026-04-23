@@ -1305,6 +1305,7 @@ function toggleTier(chk, inputId, qtyId) {
 }
 
 let mcDealCounter = 0;
+function removeMcDeal(btn) { btn.parentElement.remove(); }
 function addMulticanDeal(brandId) {
   const container = document.getElementById('mc-deals-' + brandId);
   if (!container) return;
@@ -1323,7 +1324,7 @@ function addMulticanDeal(brandId) {
     [2,3,4,5,6,7,8,9,10].map(n => '<option value="' + n + '">' + n + '-can</option>').join('') +
     '</select>' +
     '<input type="number" class="tier-input" id="mc-total-' + idx + '" placeholder="Total $" step="0.01" min="0" inputmode="numeric" onkeydown="calcInput(event)" data-cents="0" data-brand="' + brandId + '" style="flex:1;">' +
-    '<button type="button" onclick="this.closest('[id^=mc-deal-row]').remove()" style="background:none;border:none;color:var(--text-muted);font-size:16px;cursor:pointer;padding:0 4px;">x</button>';
+    '<button type="button" onclick="removeMcDeal(this)" style="background:none;border:none;color:var(--text-muted);font-size:16px;cursor:pointer;padding:0 4px;">x</button>';
   container.appendChild(row);
 }
 
