@@ -539,6 +539,13 @@ let currentView = 'list';
 let mapsReady = false;
 let sessionReportsCount = 0;
 const DISCOVERY_ENABLED = false; // Set to true to re-enable auto-discovery
+// Session ID for API logging - persists across page loads
+const SESSION_ID = (() => { try { let id = localStorage.getItem('ph_session_id'); if (!id) { id = 'sess_' + Math.random().toString(36).substr(2,9) + '_' + Date.now(); localStorage.setItem('ph_session_id', id); } return id; } catch(e) { return 'sess_unknown'; } })();
+async function logApiCall(callType, costUsd) {
+  try {
+    await sb('api_logs', { method: 'POST', prefer: 'return=minimal', body: JSON.stringify({ call_type: callType, session_id: SESSION_ID, cost_usd: costUsd }) });
+  } catch(e) { /* non-critical, ignore */ }
+}
 let discoveryRun = false;
 
 async function sb(path, opts={}) {
@@ -1158,6 +1165,7 @@ async function searchPlacesForStore(query) {
     return;
   }
   localStorage.setItem(searchKey, searches + 1);
+  logApiCall('places_search', 0.032);
   try {
     const { places } = await google.maps.places.Place.searchByText({
       fields: ['id','displayName','formattedAddress','location'],
@@ -1187,6 +1195,7 @@ async function searchPlacesForStore(query) {
 }
 
 function selectPlaceForStore(placeId, name, address, lat, lng) {
+  logApiCall('places_detail', 0.017);
   // Parse city and state from address
   let city = '', state = '', cleanAddr = address;
   const parts = address.split(',').map(s => s.trim());
