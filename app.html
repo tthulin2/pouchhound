@@ -910,8 +910,18 @@ function renderStores() {
           { flag: 'sale_multican_change_flagged',    pending: 'pending_sale_multican_price',    current: null, label: 'sale multi-can price',    mcTier: 'sale' },
           { flag: 'rewards_multican_change_flagged', pending: 'pending_rewards_multican_price', current: null, label: 'rewards multi-can price', mcTier: 'rewards' },
         ];
+        const flagToTier = {
+          shelf_change_flagged: 'shelf',
+          sale_change_flagged: 'sale',
+          rewards_change_flagged: 'rewards',
+          multican_change_flagged: 'multican',
+          sale_multican_change_flagged: 'sale_multican',
+          rewards_multican_change_flagged: 'rewards_multican',
+        };
         for (const wcat of WARNING_CATS) {
           if (!p[wcat.flag]) continue;
+          // Hide warning if its tier is filtered out
+          if (!activeTiers.has(flagToTier[wcat.flag])) continue;
           const pendingVal = p[wcat.pending];
           if (pendingVal == null) continue;
           let wp, direction, catLabel;
