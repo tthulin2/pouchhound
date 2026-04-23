@@ -538,6 +538,7 @@ let selectedStoreId = null, selectedBrandsForReport = new Set();
 let currentView = 'list';
 let mapsReady = false;
 let sessionReportsCount = 0;
+const DISCOVERY_ENABLED = false; // Set to true to re-enable auto-discovery
 let discoveryRun = false;
 
 async function sb(path, opts={}) {
@@ -721,7 +722,7 @@ async function loadNearbyStores() {
     // Update location label from nearest store (avoids Geocoding API call)
     if (userLat) reverseGeocode(userLat, userLng);
     // Run discovery in background only if needed
-    if (mapsReady && userLat && !discoveryRun && shouldRunDiscovery()) {
+    if (DISCOVERY_ENABLED && mapsReady && userLat && !discoveryRun && shouldRunDiscovery()) {
       discoveryRun = true;
       setTimeout(() => discoverNearbyChains(), 100);
     }
@@ -1111,6 +1112,16 @@ async function searchPlacesForStore(query) {
   if (!mapsReady || !google.maps.places?.Place) {
     sugEl.style.display = 'none'; return;
   }
+  // Limit to 5 add-store searches per day
+  const today = new Date().toDateString();
+  const searchKey = 'ph_store_searches_' + today;
+  const searches = parseInt(localStorage.getItem(searchKey) || '0');
+  if (searches >= 5) {
+    sugEl.innerHTML = '<div style="padding:12px;font-size:13px;color:#E24B4A;">Daily search limit reached. Please try again tomorrow.</div>';
+    sugEl.style.display = 'block';
+    return;
+  }
+  localStorage.setItem(searchKey, searches + 1);
   try {
     const { places } = await google.maps.places.Place.searchByText({
       fields: ['id','displayName','formattedAddress','location'],
@@ -1673,7 +1684,7 @@ function copyBugEmail(btn) {
 window.mapsLoaded = function() {
   mapsReady = true;
   // Google Maps JS loaded — only needed for Places search and discovery now
-  if (userLat && !discoveryRun && shouldRunDiscovery()) {
+  if (DISCOVERY_ENABLED && userLat && !discoveryRun && shouldRunDiscovery()) {
     discoveryRun = true;
     setTimeout(() => discoverNearbyChains(), 500);
   }
