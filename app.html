@@ -903,30 +903,34 @@ function renderStores() {
         // Inline price change warnings for this brand - one per changed category
         let brandWarning = '';
         const WARNING_CATS = [
-          { flag: 'shelf_change_flagged',           pending: 'pending_shelf_price',          dir: 'shelf_change_direction',           current: 'shelf_price',           label: 'shelf price',           qty: null },
-          { flag: 'sale_change_flagged',            pending: 'pending_sale_price',           dir: 'sale_change_direction',            current: 'sale_price',            label: 'sale price',            qty: null },
-          { flag: 'rewards_change_flagged',         pending: 'pending_rewards_price',        dir: 'rewards_change_direction',         current: 'rewards_price',         label: 'rewards price',         qty: null },
-
+          { flag: 'shelf_change_flagged',   pending: 'pending_shelf_price',   current: 'shelf_price',   label: 'shelf price' },
+          { flag: 'sale_change_flagged',    pending: 'pending_sale_price',    current: 'sale_price',    label: 'sale price' },
+          { flag: 'rewards_change_flagged', pending: 'pending_rewards_price', current: 'rewards_price', label: 'rewards price' },
+          { flag: 'multican_change_flagged',         pending: 'pending_multican_price',         current: null, label: 'shelf multi-can price',   mcTier: 'shelf' },
+          { flag: 'sale_multican_change_flagged',    pending: 'pending_sale_multican_price',    current: null, label: 'sale multi-can price',    mcTier: 'sale' },
+          { flag: 'rewards_multican_change_flagged', pending: 'pending_rewards_multican_price', current: null, label: 'rewards multi-can price', mcTier: 'rewards' },
         ];
         for (const wcat of WARNING_CATS) {
-          if (!p[wcat.flag] || p[wcat.current] == null) continue;
+          if (!p[wcat.flag]) continue;
           const pendingVal = p[wcat.pending];
           if (pendingVal == null) continue;
-          // For multi-can, show per-can price and qty
-          let wp, currentVal, catLabel;
-          if (wcat.qty && p[wcat.qty]) {
-            const qty = p[wcat.qty];
-            const pendingPerCan = pendingVal / qty;
-            const currentPerCan = p[wcat.current] / qty;
+          let wp, direction, catLabel;
+          if (wcat.mcTier) {
+            // Multi-can warning — find matching deal in prices_multican
+            const deals = (p.multican_deals || []).filter(d => d.tier === wcat.mcTier);
+            if (!deals.length) continue;
+            const deal = deals[0];
+            const pendingPerCan = pendingVal / deal.qty;
+            const currentPerCan = deal.price_per_can;
             wp = '$' + Number(pendingPerCan).toFixed(2) + '/can';
-            currentVal = currentPerCan;
-            catLabel = wcat.label.replace('price', '(' + qty + '-can)');
+            direction = pendingVal < deal.total ? 'down' : 'up';
+            catLabel = wcat.mcTier + ' multi-can (' + deal.qty + '-can)';
           } else {
+            if (p[wcat.current] == null) continue;
             wp = '$' + Number(pendingVal).toFixed(2);
-            currentVal = p[wcat.current];
+            direction = pendingVal < p[wcat.current] ? 'down' : 'up';
             catLabel = wcat.label;
           }
-          const direction = pendingVal < p[wcat.current] ? 'down' : 'up';
           const dirWord = direction === 'down' ? 'lower' : 'higher';
           const dirArrow = direction === 'down' ? '↓' : '↑';
           const warningId = 'warn-' + store.id + '-' + p.brand_id + '-' + wcat.flag;
