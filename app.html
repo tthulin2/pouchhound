@@ -890,8 +890,11 @@ function renderStores() {
         const tierActiveTier = { shelf: 'multican', sale: 'sale_multican', rewards: 'rewards_multican' };
         const tierLabel = { shelf: 'Shelf ', sale: 'Sale ', rewards: 'Rewards ' };
         (p.multican_deals || []).forEach(d => {
-          if (activeTiers.has(tierActiveTier[d.tier])) {
-            pills.push(`<span class="pill ${tierPillClass[d.tier]}">${tierLabel[d.tier]}${d.qty}-can $${Number(d.price_per_can).toFixed(2)}/can</span>`);
+          const tpc = tierPillClass[d.tier] || 'pill-multi';
+          const tat = tierActiveTier[d.tier] || 'multican';
+          const tl = tierLabel[d.tier] || '';
+          if (activeTiers.has(tat)) {
+            pills.push(`<span class="pill ${tpc}">${tl}${d.qty}-can $${Number(d.price_per_can).toFixed(2)}/can</span>`);
           }
         });
         const shelfStr = p.shelf_price && bp < p.shelf_price ? `<span class="brand-shelf">$${Number(p.shelf_price).toFixed(2)}</span>` : '';
@@ -1342,14 +1345,15 @@ function addMulticanDeal(brandId, tier) {
   const row = document.createElement('div');
   row.className = 'price-tier-row';
   row.id = 'mc-deal-row-' + idx;
-  row.style.cssText = 'gap:4px;margin-top:2px;margin-left:24px;flex-wrap:wrap;align-items:center;';
+  row.style.cssText = 'gap:4px;margin-top:2px;margin-left:24px;align-items:center;';
   row.innerHTML =
     '<input type="hidden" id="mc-tier-' + idx + '" value="' + tier + '">' +
-    '<select class="qty-select" id="mc-qty-' + idx + '" style="flex:0 0 auto;">' +
-    [2,3,4,5,6,7,8,9,10].map(n => '<option value="' + n + '">' + n + '-can</option>').join('') +
+    '<select class="qty-select" id="mc-qty-' + idx + '">' +
+    [2,3,4,5,6,7,8,9,10].map(n => '<option value="' + n + '">' + n + '</option>').join('') +
     '</select>' +
-    '<input type="number" class="tier-input" id="mc-total-' + idx + '" placeholder="Total $" step="0.01" min="0" inputmode="numeric" onkeydown="calcInput(event)" data-cents="0" data-brand="' + brandId + '" style="flex:1;">' +
-    '<button type="button" onclick="removeMcDeal(this)" style="background:none;border:none;color:var(--text-muted);font-size:16px;cursor:pointer;padding:0 4px;">x</button>';
+    '<span style="font-size:12px;color:var(--text-muted);">for</span>' +
+    '<input type="number" class="tier-input" id="mc-total-' + idx + '" placeholder="0.00" step="0.01" min="0" inputmode="numeric" onkeydown="calcInput(event)" data-cents="0" data-brand="' + brandId + '" style="flex:1;">' +
+    '<button type="button" onclick="removeMcDeal(this)" style="background:none;border:none;color:var(--text-muted);font-size:16px;cursor:pointer;padding:0 4px;">✕</button>';
   container.appendChild(row);
 }
 
@@ -1554,28 +1558,26 @@ async function submitPrices() {
                 updated_at: new Date().toISOString()
               })
             });
-            // Propagate to chain stores that don't have this exact deal
+            // Propagate to chain stores that don't already have this exact deal
             if (reportStore?.chain && reportStoreState) {
               const chainStores = await sb('stores?chain=eq.' + encodeURIComponent(reportStore.chain) + '&state=eq.' + reportStoreState + '&select=id');
-              await Promise.all(chainStores
-                .filter(cs => String(cs.id) !== String(report.store_id))
-                .map(async cs => {
-                  try {
-                    await sb('prices_multican', {
-                      method: 'POST',
-                      prefer: 'return=minimal',
-                      body: JSON.stringify({
-                        store_id: cs.id,
-                        brand_id: parseInt(report.brand_id),
-                        tier: deal.tier,
-                        qty: deal.qty,
-                        total: deal.total,
-                        updated_at: new Date().toISOString()
-                      })
-                    });
-                  } catch(e) { /* already exists, skip */ }
-                })
-              );
+              const existingDeals = await sb('prices_multican?brand_id=eq.' + parseInt(report.brand_id) + '&tier=eq.' + deal.tier + '&qty=eq.' + deal.qty + '&store_id=in.(' + chainStores.map(s=>s.id).join(',') + ')&select=store_id');
+              const existingIds = new Set(existingDeals.map(d => String(d.store_id)));
+              const toPropagate = chainStores.filter(cs => String(cs.id) !== String(report.store_id) && !existingIds.has(String(cs.id)));
+              await Promise.all(toPropagate.map(cs =>
+                sb('prices_multican', {
+                  method: 'POST',
+                  prefer: 'return=minimal',
+                  body: JSON.stringify({
+                    store_id: cs.id,
+                    brand_id: parseInt(report.brand_id),
+                    tier: deal.tier,
+                    qty: deal.qty,
+                    total: deal.total,
+                    updated_at: new Date().toISOString()
+                  })
+                }).catch(() => {})
+              ));
             }
           } catch(e) { console.error('Multi-can deal submit error:', e.message); }
         }
