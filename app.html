@@ -1259,6 +1259,9 @@ function buildPriceEntries() {
       s: { checked: document.getElementById(`s-c-${brandId}`)?.checked, val: document.getElementById(`s-${brandId}`)?.value, cents: document.getElementById(`s-${brandId}`)?.dataset.cents },
       sl: { checked: document.getElementById(`sl-c-${brandId}`)?.checked, val: document.getElementById(`sl-${brandId}`)?.value, cents: document.getElementById(`sl-${brandId}`)?.dataset.cents },
       r: { checked: document.getElementById(`r-c-${brandId}`)?.checked, val: document.getElementById(`r-${brandId}`)?.value, cents: document.getElementById(`r-${brandId}`)?.dataset.cents },
+      mcShelf: { checked: document.getElementById(`mc-shelf-c-${brandId}`)?.checked, qty: document.getElementById(`mc-shelf-qty-${brandId}`)?.value, val: document.getElementById(`mc-shelf-total-${brandId}`)?.value, cents: document.getElementById(`mc-shelf-total-${brandId}`)?.dataset.cents },
+      mcSale: { checked: document.getElementById(`mc-sale-c-${brandId}`)?.checked, qty: document.getElementById(`mc-sale-qty-${brandId}`)?.value, val: document.getElementById(`mc-sale-total-${brandId}`)?.value, cents: document.getElementById(`mc-sale-total-${brandId}`)?.dataset.cents },
+      mcRewards: { checked: document.getElementById(`mc-rewards-c-${brandId}`)?.checked, qty: document.getElementById(`mc-rewards-qty-${brandId}`)?.value, val: document.getElementById(`mc-rewards-total-${brandId}`)?.value, cents: document.getElementById(`mc-rewards-total-${brandId}`)?.dataset.cents },
     };
   });
   const c = document.getElementById('price-entries');
@@ -1271,13 +1274,13 @@ function buildPriceEntries() {
       <div class="price-tier-row"><input type="checkbox" class="tier-check" id="s-c-${brandId}" onchange="toggleTier(this,'s-${brandId}')"><div class="tier-dot" style="background:#ccc;"></div><label class="tier-label" for="s-c-${brandId}">Shelf (single)</label><input type="number" class="tier-input" id="s-${brandId}" placeholder="0.00" step="0.01" min="0" inputmode="numeric" onkeydown="calcInput(event)" data-cents="0" disabled></div>
       <div class="price-tier-row"><input type="checkbox" class="tier-check" id="sl-c-${brandId}" onchange="toggleTier(this,'sl-${brandId}')"><div class="tier-dot" style="background:#F1948A;"></div><label class="tier-label" for="sl-c-${brandId}">Sale (single)</label><input type="number" class="tier-input" id="sl-${brandId}" placeholder="0.00" step="0.01" min="0" inputmode="numeric" onkeydown="calcInput(event)" data-cents="0" disabled></div>
       <div class="price-tier-row"><input type="checkbox" class="tier-check" id="r-c-${brandId}" onchange="toggleTier(this,'r-${brandId}')"><div class="tier-dot" style="background:#9FE1CB;"></div><label class="tier-label" for="r-c-${brandId}">Rewards (single)</label><input type="number" class="tier-input" id="r-${brandId}" placeholder="0.00" step="0.01" min="0" inputmode="numeric" onkeydown="calcInput(event)" data-cents="0" disabled></div>
-      <div class="price-tier-row"><input type="checkbox" class="tier-check" id="mc-shelf-c-${brandId}" onchange="toggleMcTier(this,'${brandId}','shelf')"><div class="tier-dot" style="background:#FAC775;"></div><label class="tier-label" for="mc-shelf-c-${brandId}">Shelf (multi-can)</label><select class="qty-select" id="mc-shelf-qty-${brandId}" disabled>${[2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}">${n}</option>`).join('')}</select><span class="tier-label" style="flex:0;">for</span><input type="number" class="tier-input" id="mc-shelf-total-${brandId}" placeholder="0.00" step="0.01" min="0" inputmode="numeric" onkeydown="calcInput(event)" data-cents="0" data-brand="${brandId}" data-tier="shelf" disabled></div>
+      <div class="price-tier-row"><input type="checkbox" class="tier-check" id="mc-shelf-c-${brandId}" onchange="toggleMcTier(this,'${brandId}','shelf')"><div class="tier-dot" style="background:#FAC775;"></div><label class="tier-label" for="mc-shelf-c-${brandId}">Shelf (multi-can)</label><select class="qty-select" id="mc-shelf-qty-${brandId}" disabled style="width:44px;min-width:44px;">${[2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}">${n}</option>`).join('')}</select><span style="font-size:12px;color:var(--text-muted);flex:0;white-space:nowrap;">for</span><input type="number" class="tier-input" id="mc-shelf-total-${brandId}" placeholder="0.00" step="0.01" min="0" inputmode="numeric" onkeydown="calcInput(event)" data-cents="0" data-brand="${brandId}" data-tier="shelf" disabled></div>
       <div id="mc-deals-shelf-${brandId}"></div>
       <button type="button" id="mc-add-shelf-${brandId}" onclick="addMulticanDeal(${brandId},'shelf')" style="display:none;margin-left:24px;margin-bottom:4px;padding:3px 10px;border:1px dashed #FAC775;border-radius:6px;background:#FFF8E1;color:#7B5800;font-size:11px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">+ Add another shelf deal</button>
-      <div class="price-tier-row"><input type="checkbox" class="tier-check" id="mc-sale-c-${brandId}" onchange="toggleMcTier(this,'${brandId}','sale')"><div class="tier-dot" style="background:#C39BD3;"></div><label class="tier-label" for="mc-sale-c-${brandId}">Sale (multi-can)</label><select class="qty-select" id="mc-sale-qty-${brandId}" disabled>${[2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}">${n}</option>`).join('')}</select><span class="tier-label" style="flex:0;">for</span><input type="number" class="tier-input" id="mc-sale-total-${brandId}" placeholder="0.00" step="0.01" min="0" inputmode="numeric" onkeydown="calcInput(event)" data-cents="0" data-brand="${brandId}" data-tier="sale" disabled></div>
+      <div class="price-tier-row"><input type="checkbox" class="tier-check" id="mc-sale-c-${brandId}" onchange="toggleMcTier(this,'${brandId}','sale')"><div class="tier-dot" style="background:#C39BD3;"></div><label class="tier-label" for="mc-sale-c-${brandId}">Sale (multi-can)</label><select class="qty-select" id="mc-sale-qty-${brandId}" disabled style="width:44px;min-width:44px;">${[2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}">${n}</option>`).join('')}</select><span style="font-size:12px;color:var(--text-muted);flex:0;white-space:nowrap;">for</span><input type="number" class="tier-input" id="mc-sale-total-${brandId}" placeholder="0.00" step="0.01" min="0" inputmode="numeric" onkeydown="calcInput(event)" data-cents="0" data-brand="${brandId}" data-tier="sale" disabled></div>
       <div id="mc-deals-sale-${brandId}"></div>
       <button type="button" id="mc-add-sale-${brandId}" onclick="addMulticanDeal(${brandId},'sale')" style="display:none;margin-left:24px;margin-bottom:4px;padding:3px 10px;border:1px dashed #C39BD3;border-radius:6px;background:#F5EEF8;color:#6C3483;font-size:11px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">+ Add another sale deal</button>
-      <div class="price-tier-row"><input type="checkbox" class="tier-check" id="mc-rewards-c-${brandId}" onchange="toggleMcTier(this,'${brandId}','rewards')"><div class="tier-dot" style="background:#B5D4F4;"></div><label class="tier-label" for="mc-rewards-c-${brandId}">Rewards (multi-can)</label><select class="qty-select" id="mc-rewards-qty-${brandId}" disabled>${[2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}">${n}</option>`).join('')}</select><span class="tier-label" style="flex:0;">for</span><input type="number" class="tier-input" id="mc-rewards-total-${brandId}" placeholder="0.00" step="0.01" min="0" inputmode="numeric" onkeydown="calcInput(event)" data-cents="0" data-brand="${brandId}" data-tier="rewards" disabled></div>
+      <div class="price-tier-row"><input type="checkbox" class="tier-check" id="mc-rewards-c-${brandId}" onchange="toggleMcTier(this,'${brandId}','rewards')"><div class="tier-dot" style="background:#B5D4F4;"></div><label class="tier-label" for="mc-rewards-c-${brandId}">Rewards (multi-can)</label><select class="qty-select" id="mc-rewards-qty-${brandId}" disabled style="width:44px;min-width:44px;">${[2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}">${n}</option>`).join('')}</select><span style="font-size:12px;color:var(--text-muted);flex:0;white-space:nowrap;">for</span><input type="number" class="tier-input" id="mc-rewards-total-${brandId}" placeholder="0.00" step="0.01" min="0" inputmode="numeric" onkeydown="calcInput(event)" data-cents="0" data-brand="${brandId}" data-tier="rewards" disabled></div>
       <div id="mc-deals-rewards-${brandId}"></div>
       <button type="button" id="mc-add-rewards-${brandId}" onclick="addMulticanDeal(${brandId},'rewards')" style="display:none;margin-left:24px;margin-bottom:4px;padding:3px 10px;border:1px dashed #B5D4F4;border-radius:6px;background:#EAF4FE;color:#1A5276;font-size:11px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">+ Add another rewards deal</button>`;
     c.appendChild(block);
@@ -1303,6 +1306,23 @@ function buildPriceEntries() {
       restore('s', 's');
       restore('sl', 'sl');
       restore('r', 'r');
+      // Restore multi-can inline rows
+      for (const [key, tier] of [['mcShelf','shelf'],['mcSale','sale'],['mcRewards','rewards']]) {
+        const t = s[key];
+        if (!t || !t.checked) continue;
+        const chk = document.getElementById(`mc-${tier}-c-${brandId}`);
+        const qtyEl = document.getElementById(`mc-${tier}-qty-${brandId}`);
+        const totalEl = document.getElementById(`mc-${tier}-total-${brandId}`);
+        const addBtn = document.getElementById(`mc-add-${tier}-${brandId}`);
+        if (chk && totalEl) {
+          chk.checked = true;
+          if (qtyEl) { qtyEl.disabled = false; qtyEl.value = t.qty || 2; }
+          totalEl.disabled = false;
+          totalEl.value = t.val || '';
+          totalEl.dataset.cents = t.cents || '0';
+          if (addBtn) addBtn.style.display = 'inline-block';
+        }
+      }
     }
   });
 }
@@ -1548,7 +1568,8 @@ async function submitPrices() {
           }
         } else {
           console.log('POST new price for brand', brand_id);
-          await sb('prices', { method: 'POST', prefer: 'return=minimal', body: JSON.stringify(report) });
+          const { mcDeals: _mc, ...postFields } = report;
+          await sb('prices', { method: 'POST', prefer: 'return=minimal', body: JSON.stringify(postFields) });
         }
       } catch(e) { console.error('Submit error for brand', report.brand_id, e.message); }
 
