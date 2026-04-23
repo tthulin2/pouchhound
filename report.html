@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PouchHound — API Report</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'system-ui', sans-serif; background: #f4f6f5; color: #1a2e25; }
+  .header { background: #1a2e25; color: white; padding: 16px 24px; display: flex; align-items: center; gap: 12px; }
+  .header h1 { font-size: 18px; font-weight: 700; }
+  .header span { font-size: 12px; opacity: 0.6; }
+  .login { max-width: 400px; margin: 80px auto; background: white; border-radius: 16px; padding: 32px; box-shadow: 0 2px 16px rgba(0,0,0,0.08); }
+  .login h2 { font-size: 20px; margin-bottom: 20px; }
+  .login input { width: 100%; padding: 10px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; margin-bottom: 12px; }
+  .login button { width: 100%; padding: 12px; background: #1d9e75; color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+  .filters { background: white; border-radius: 12px; padding: 16px 20px; margin-bottom: 20px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  .filters label { font-size: 12px; font-weight: 600; color: #5a7a6a; text-transform: uppercase; }
+  .filters select, .filters input { padding: 7px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; }
+  .filters button { padding: 8px 16px; background: #1d9e75; color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  .card .label { font-size: 11px; font-weight: 600; color: #5a7a6a; text-transform: uppercase; margin-bottom: 6px; }
+  .card .value { font-size: 28px; font-weight: 700; color: #1a2e25; }
+  .card .sub { font-size: 12px; color: #5a7a6a; margin-top: 4px; }
+  .section { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); margin-bottom: 20px; }
+  .section h2 { font-size: 15px; font-weight: 700; margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 8px 12px; background: #f4f6f5; font-weight: 600; font-size: 11px; text-transform: uppercase; color: #5a7a6a; border-radius: 6px; }
+  td { padding: 10px 12px; border-bottom: 1px solid #f0f0f0; }
+  .flag { background: #FFF3E0; color: #E65100; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+  .call-type { background: #E8F5E9; color: #1B5E20; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 500; }
+  .bar-wrap { background: #f0f0f0; border-radius: 4px; height: 8px; overflow: hidden; }
+  .bar { height: 8px; background: #1d9e75; border-radius: 4px; }
+  .day-row { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  .day-label { font-size: 12px; color: #5a7a6a; width: 90px; flex-shrink: 0; }
+  .day-cost { font-size: 12px; font-weight: 600; width: 60px; text-align: right; flex-shrink: 0; }
+  .loading { text-align: center; padding: 40px; color: #5a7a6a; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="header"><h1>🐾 PouchHound</h1><span>API Report</span></div>
+  <div class="login">
+    <h2>Admin Login</h2>
+    <input type="password" id="password-input" placeholder="Enter password" onkeydown="if(event.key==='Enter')checkPassword()">
+    <button onclick="checkPassword()">Login</button>
+    <p id="login-error" style="color:#E24B4A;font-size:12px;margin-top:8px;display:none;">Incorrect password</p>
+  </div>
+</div>
+
+<div id="report-screen" class="hidden">
+  <div class="header"><h1>🐾 PouchHound</h1><span>API Usage Report</span></div>
+  <div class="container">
+    <div class="filters">
+      <div>
+        <label>Quick Range</label><br>
+        <select id="quick-range" onchange="applyQuickRange()">
+          <option value="7">Last 7 days</option>
+          <option value="14">Last 14 days</option>
+          <option value="30" selected>Last 30 days</option>
+          <option value="90">Last 90 days</option>
+          <option value="custom">Custom</option>
+        </select>
+      </div>
+      <div id="custom-dates" style="display:none;">
+        <label>From</label><br>
+        <input type="date" id="date-from">
+      </div>
+      <div id="custom-dates2" style="display:none;">
+        <label>To</label><br>
+        <input type="date" id="date-to">
+      </div>
+      <div>
+        <label>&nbsp;</label><br>
+        <button onclick="loadReport()">Load Report</button>
+      </div>
+    </div>
+
+    <div id="loading" class="loading">Loading report...</div>
+    <div id="report-content" class="hidden">
+
+      <div class="cards">
+        <div class="card">
+          <div class="label">Total API Calls</div>
+          <div class="value" id="stat-total-calls">—</div>
+          <div class="sub" id="stat-period">—</div>
+        </div>
+        <div class="card">
+          <div class="label">Estimated Cost</div>
+          <div class="value" id="stat-total-cost">—</div>
+          <div class="sub">Google Places API</div>
+        </div>
+        <div class="card">
+          <div class="label">Unique Sessions</div>
+          <div class="value" id="stat-sessions">—</div>
+          <div class="sub">Unique users</div>
+        </div>
+        <div class="card">
+          <div class="label">Avg Cost/Day</div>
+          <div class="value" id="stat-avg-day">—</div>
+          <div class="sub">Over period</div>
+        </div>
+        <div class="card">
+          <div class="label">Flagged Sessions</div>
+          <div class="value" id="stat-flagged" style="color:#E65100;">—</div>
+          <div class="sub">Unusual activity</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Daily Usage</h2>
+        <div id="daily-chart"></div>
+      </div>
+
+      <div class="section">
+        <h2>Calls by Type</h2>
+        <table>
+          <thead><tr><th>Call Type</th><th>Count</th><th>Cost/Call</th><th>Total Cost</th></tr></thead>
+          <tbody id="by-type-table"></tbody>
+        </table>
+      </div>
+
+      <div class="section">
+        <h2>Sessions <span style="font-size:12px;font-weight:400;color:#5a7a6a;">(flagged if >20 calls/day or 3x average)</span></h2>
+        <table>
+          <thead><tr><th>Session ID</th><th>Total Calls</th><th>Total Cost</th><th>First Seen</th><th>Last Seen</th><th>Status</th></tr></thead>
+          <tbody id="sessions-table"></tbody>
+        </table>
+      </div>
+
+      <div class="section">
+        <h2>Recent Calls</h2>
+        <table>
+          <thead><tr><th>Time</th><th>Type</th><th>Session</th><th>Cost</th></tr></thead>
+          <tbody id="recent-table"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SB_URL = 'https://xgngjwjnyemgfblbqxqj.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhmbmdqd2pueWVtZ2ZibGJxeGoiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTc0MjkzNjI3MCwiZXhwIjoyMDU4NTEyMjcwfQ.1jf4tMcKPcFmFkSvGAnpvZ1MlQSEgBPpTCb9QaOrBXI';
+const REPORT_PASSWORD = 'pouchhound2024';
+
+async function sb(path) {
+  const r = await fetch(SB_URL + '/rest/v1/' + path, { headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY } });
+  return r.json();
+}
+
+function checkPassword() {
+  const pw = document.getElementById('password-input').value;
+  if (pw === REPORT_PASSWORD) {
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('report-screen').classList.remove('hidden');
+    loadReport();
+  } else {
+    document.getElementById('login-error').style.display = 'block';
+  }
+}
+
+function applyQuickRange() {
+  const val = document.getElementById('quick-range').value;
+  const show = val === 'custom';
+  document.getElementById('custom-dates').style.display = show ? 'block' : 'none';
+  document.getElementById('custom-dates2').style.display = show ? 'block' : 'none';
+  if (val !== 'custom') loadReport();
+}
+
+function getDateRange() {
+  const val = document.getElementById('quick-range').value;
+  const to = new Date();
+  const from = new Date();
+  if (val === 'custom') {
+    return { from: document.getElementById('date-from').value, to: document.getElementById('date-to').value };
+  }
+  from.setDate(from.getDate() - parseInt(val));
+  return { from: from.toISOString(), to: to.toISOString() };
+}
+
+async function loadReport() {
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('report-content').classList.add('hidden');
+  const { from, to } = getDateRange();
+  const logs = await sb('api_logs?created_at=gte.' + from + '&created_at=lte.' + to + '&order=created_at.desc&limit=5000&select=*');
+  if (!Array.isArray(logs)) { document.getElementById('loading').innerHTML = 'Error loading data.'; return; }
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('report-content').classList.remove('hidden');
+  renderReport(logs, from, to);
+}
+
+function renderReport(logs, from, to) {
+  const totalCalls = logs.length;
+  const totalCost = logs.reduce((s, l) => s + (parseFloat(l.cost_usd) || 0), 0);
+  const sessions = {};
+  logs.forEach(l => {
+    if (!sessions[l.session_id]) sessions[l.session_id] = { calls: 0, cost: 0, first: l.created_at, last: l.created_at };
+    sessions[l.session_id].calls++;
+    sessions[l.session_id].cost += parseFloat(l.cost_usd) || 0;
+    if (l.created_at < sessions[l.session_id].first) sessions[l.session_id].first = l.created_at;
+    if (l.created_at > sessions[l.session_id].last) sessions[l.session_id].last = l.created_at;
+  });
+  const uniqueSessions = Object.keys(sessions).length;
+  const days = Math.max(1, Math.round((new Date(to) - new Date(from)) / 86400000));
+  const avgDay = totalCost / days;
+  const avgCalls = totalCalls / uniqueSessions || 0;
+  const flagged = Object.values(sessions).filter(s => s.calls > 20 || s.calls > avgCalls * 3).length;
+
+  document.getElementById('stat-total-calls').textContent = totalCalls.toLocaleString();
+  document.getElementById('stat-total-cost').textContent = '$' + totalCost.toFixed(4);
+  document.getElementById('stat-sessions').textContent = uniqueSessions.toLocaleString();
+  document.getElementById('stat-avg-day').textContent = '$' + avgDay.toFixed(4);
+  document.getElementById('stat-flagged').textContent = flagged;
+  document.getElementById('stat-period').textContent = days + ' day period';
+
+  // Daily chart
+  const byDay = {};
+  logs.forEach(l => {
+    const day = l.created_at.substr(0, 10);
+    if (!byDay[day]) byDay[day] = { calls: 0, cost: 0 };
+    byDay[day].calls++;
+    byDay[day].cost += parseFloat(l.cost_usd) || 0;
+  });
+  const maxCost = Math.max(...Object.values(byDay).map(d => d.cost), 0.001);
+  const chartHtml = Object.entries(byDay).sort((a,b) => a[0].localeCompare(b[0])).map(([day, data]) => `
+    <div class="day-row">
+      <div class="day-label">${day}</div>
+      <div class="bar-wrap" style="flex:1;"><div class="bar" style="width:${Math.round(data.cost/maxCost*100)}%"></div></div>
+      <div class="day-cost">$${data.cost.toFixed(4)}</div>
+      <div style="font-size:11px;color:#5a7a6a;width:60px;">${data.calls} calls</div>
+    </div>`).join('');
+  document.getElementById('daily-chart').innerHTML = chartHtml || '<p style="color:#5a7a6a;font-size:13px;">No data</p>';
+
+  // By type
+  const byType = {};
+  logs.forEach(l => {
+    if (!byType[l.call_type]) byType[l.call_type] = { count: 0, cost: 0, rate: parseFloat(l.cost_usd) || 0 };
+    byType[l.call_type].count++;
+    byType[l.call_type].cost += parseFloat(l.cost_usd) || 0;
+  });
+  document.getElementById('by-type-table').innerHTML = Object.entries(byType).map(([type, data]) => `
+    <tr><td><span class="call-type">${type}</span></td><td>${data.count.toLocaleString()}</td><td>$${data.rate.toFixed(4)}</td><td>$${data.cost.toFixed(4)}</td></tr>`).join('') || '<tr><td colspan="4" style="color:#5a7a6a;">No data</td></tr>';
+
+  // Sessions
+  document.getElementById('sessions-table').innerHTML = Object.entries(sessions)
+    .sort((a,b) => b[1].calls - a[1].calls)
+    .slice(0, 50)
+    .map(([id, s]) => {
+      const isFlagged = s.calls > 20 || s.calls > avgCalls * 3;
+      return `<tr>
+        <td style="font-size:11px;font-family:monospace;">${id}</td>
+        <td>${s.calls}</td>
+        <td>$${s.cost.toFixed(4)}</td>
+        <td style="font-size:11px;">${new Date(s.first).toLocaleDateString()}</td>
+        <td style="font-size:11px;">${new Date(s.last).toLocaleDateString()}</td>
+        <td>${isFlagged ? '<span class="flag">⚠ Flagged</span>' : '✓'}</td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="6" style="color:#5a7a6a;">No data</td></tr>';
+
+  // Recent calls
+  document.getElementById('recent-table').innerHTML = logs.slice(0, 50).map(l => `
+    <tr>
+      <td style="font-size:11px;">${new Date(l.created_at).toLocaleString()}</td>
+      <td><span class="call-type">${l.call_type}</span></td>
+      <td style="font-size:11px;font-family:monospace;">${(l.session_id||'').substr(0,20)}...</td>
+      <td>$${parseFloat(l.cost_usd||0).toFixed(4)}</td>
+    </tr>`).join('') || '<tr><td colspan="4" style="color:#5a7a6a;">No data</td></tr>';
+}
+</script>
+</body>
+</html>
