@@ -156,12 +156,23 @@ async function sb(path) {
 function checkPassword() {
   const pw = document.getElementById('password-input').value;
   if (pw === REPORT_PASSWORD) {
-    document.getElementById('login-screen').classList.add('hidden');
-    document.getElementById('report-screen').classList.remove('hidden');
-    loadReport();
+    localStorage.setItem('ph_report_auth', Date.now() + (7 * 24 * 60 * 60 * 1000));
+    showReport();
   } else {
     document.getElementById('login-error').style.display = 'block';
   }
+}
+
+function showReport() {
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('report-screen').classList.remove('hidden');
+  loadReport();
+}
+
+// Check if already logged in
+const authExpiry = parseInt(localStorage.getItem('ph_report_auth') || '0');
+if (authExpiry > Date.now()) {
+  showReport();
 }
 
 function applyQuickRange() {
@@ -185,13 +196,18 @@ function getDateRange() {
 
 async function loadReport() {
   document.getElementById('loading').style.display = 'block';
+  document.getElementById('loading').textContent = 'Loading report...';
   document.getElementById('report-content').classList.add('hidden');
-  const { from, to } = getDateRange();
-  const logs = await sb('api_logs?created_at=gte.' + from + '&created_at=lte.' + to + '&order=created_at.desc&limit=5000&select=*');
-  if (!Array.isArray(logs)) { document.getElementById('loading').innerHTML = 'Error loading data.'; return; }
-  document.getElementById('loading').style.display = 'none';
-  document.getElementById('report-content').classList.remove('hidden');
-  renderReport(logs, from, to);
+  try {
+    const { from, to } = getDateRange();
+    const logs = await sb('api_logs?created_at=gte.' + encodeURIComponent(from) + '&created_at=lte.' + encodeURIComponent(to) + '&order=created_at.desc&limit=5000&select=*');
+    if (!Array.isArray(logs)) { document.getElementById('loading').textContent = 'Error loading data: ' + JSON.stringify(logs); return; }
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('report-content').classList.remove('hidden');
+    renderReport(logs, from, to);
+  } catch(e) {
+    document.getElementById('loading').textContent = 'Error: ' + e.message;
+  }
 }
 
 function renderReport(logs, from, to) {
