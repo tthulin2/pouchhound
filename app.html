@@ -717,6 +717,21 @@ async function loadNearbyStores() {
       if (!s.lat || !s.lng || !userLat) return true;
       return dist(userLat, userLng, s.lat, s.lng) <= radiusMiles;
     }).map(s => ({ ...s, distance: (s.lat && userLat) ? dist(userLat,userLng,s.lat,s.lng) : 999 }));
+
+    // Fetch multi-can deals for nearby stores and attach to price records
+    try {
+      const storeIds = allStores.map(s => s.id);
+      if (storeIds.length > 0) {
+        const mcDeals = await sb('prices_multican?store_id=in.(' + storeIds.join(',') + ')&select=store_id,brand_id,tier,qty,total,price_per_can');
+        // Attach deals to matching price records
+        allStores.forEach(store => {
+          (store.prices || []).forEach(p => {
+            p.multican_deals = mcDeals.filter(d => String(d.store_id) === String(store.id) && d.brand_id === p.brand_id);
+          });
+        });
+      }
+    } catch(e) { console.error('Multi-can fetch error:', e.message); }
+
     // Render immediately — don't wait for discovery
     renderStores();
     // Update location label from nearest store (avoids Geocoding API call)
@@ -803,14 +818,14 @@ function getBrandName(id) { return (allBrands.find(x=>x.id===id)||{}).name||''; 
 function getBrandId(name) { return (allBrands.find(x=>x.name===name)||{}).id||null; }
 
 function getActiveBestPrice(p) {
-  // Calculate best price considering only active tiers
   const candidates = [];
   if (activeTiers.has('shelf') && p.shelf_price) candidates.push(p.shelf_price);
   if (activeTiers.has('sale') && p.sale_price) candidates.push(p.sale_price);
   if (activeTiers.has('rewards') && p.rewards_price) candidates.push(p.rewards_price);
-  if (activeTiers.has('multican') && p.multican_price_per_can) candidates.push(p.multican_price_per_can);
-  if (activeTiers.has('sale_multican') && p.sale_multican_price_per_can) candidates.push(p.sale_multican_price_per_can);
-  if (activeTiers.has('rewards_multican') && p.rewards_multican_price_per_can) candidates.push(p.rewards_multican_price_per_can);
+  const tierActiveTier = { regular: 'multican', sale: 'sale_multican', rewards: 'rewards_multican' };
+  (p.multican_deals || []).forEach(d => {
+    if (activeTiers.has(tierActiveTier[d.tier])) candidates.push(d.price_per_can);
+  });
   return candidates.length ? Math.min(...candidates) : 999;
 }
 
@@ -870,9 +885,15 @@ function renderStores() {
         if (p.shelf_price && activeTiers.has('shelf')) pills.push(`<span class="pill pill-shelf">Shelf (single) $${Number(p.shelf_price).toFixed(2)}</span>`);
         if (p.sale_price && activeTiers.has('sale')) pills.push(`<span class="pill pill-sale">Sale (single) $${Number(p.sale_price).toFixed(2)}</span>`);
         if (p.rewards_price && activeTiers.has('rewards')) pills.push(`<span class="pill pill-rewards">Rewards (single) $${Number(p.rewards_price).toFixed(2)}</span>`);
-        if (p.multican_price_per_can && activeTiers.has('multican')) pills.push(`<span class="pill pill-multi">${p.multican_qty}-can $${Number(p.multican_price_per_can).toFixed(2)}/can</span>`);
-        if (p.sale_multican_price_per_can && activeTiers.has('sale_multican')) pills.push(`<span class="pill pill-sale-multi">Sale (multi-can) ${p.sale_multican_qty} $${Number(p.sale_multican_price_per_can).toFixed(2)}/can</span>`);
-        if (p.rewards_multican_price_per_can && activeTiers.has('rewards_multican')) pills.push(`<span class="pill pill-combo">Rewards (multi-can) ${p.rewards_multican_qty}+ $${Number(p.rewards_multican_price_per_can).toFixed(2)}/can</span>`);
+        // Multi-can pills from prices_multican
+        const tierPillClass = { regular: 'pill-multi', sale: 'pill-sale-multi', rewards: 'pill-combo' };
+        const tierActiveTier = { regular: 'multican', sale: 'sale_multican', rewards: 'rewards_multican' };
+        const tierLabel = { regular: '', sale: 'Sale ', rewards: 'Rewards ' };
+        (p.multican_deals || []).forEach(d => {
+          if (activeTiers.has(tierActiveTier[d.tier])) {
+            pills.push(`<span class="pill ${tierPillClass[d.tier]}">${tierLabel[d.tier]}${d.qty}-can $${Number(d.price_per_can).toFixed(2)}/can</span>`);
+          }
+        });
         const shelfStr = p.shelf_price && bp < p.shelf_price ? `<span class="brand-shelf">$${Number(p.shelf_price).toFixed(2)}</span>` : '';
         const priceStr = bp && bp<999 ? `$${Number(bp).toFixed(2)}` : '–';
         const ago = p.updated_at ? timeAgo(p.updated_at) : '';
@@ -882,9 +903,7 @@ function renderStores() {
           { flag: 'shelf_change_flagged',           pending: 'pending_shelf_price',          dir: 'shelf_change_direction',           current: 'shelf_price',           label: 'shelf price',           qty: null },
           { flag: 'sale_change_flagged',            pending: 'pending_sale_price',           dir: 'sale_change_direction',            current: 'sale_price',            label: 'sale price',            qty: null },
           { flag: 'rewards_change_flagged',         pending: 'pending_rewards_price',        dir: 'rewards_change_direction',         current: 'rewards_price',         label: 'rewards price',         qty: null },
-          { flag: 'multican_change_flagged',        pending: 'pending_multican_price',       dir: 'multican_change_direction',        current: 'multican_total',        label: 'multi-can price',       qty: 'multican_qty' },
-          { flag: 'sale_multican_change_flagged',   pending: 'pending_sale_multican_price',  dir: 'sale_multican_change_direction',   current: 'sale_multican_total',   label: 'sale multi-can price',  qty: 'sale_multican_qty' },
-          { flag: 'rewards_multican_change_flagged',pending: 'pending_rewards_multican_price',dir: 'rewards_multican_change_direction',current: 'rewards_multican_total',label: 'rewards multi-can price',qty: 'rewards_multican_qty' },
+
         ];
         for (const wcat of WARNING_CATS) {
           if (!p[wcat.flag] || p[wcat.current] == null) continue;
@@ -1237,9 +1256,6 @@ function buildPriceEntries() {
       s: { checked: document.getElementById(`s-c-${brandId}`)?.checked, val: document.getElementById(`s-${brandId}`)?.value, cents: document.getElementById(`s-${brandId}`)?.dataset.cents },
       sl: { checked: document.getElementById(`sl-c-${brandId}`)?.checked, val: document.getElementById(`sl-${brandId}`)?.value, cents: document.getElementById(`sl-${brandId}`)?.dataset.cents },
       r: { checked: document.getElementById(`r-c-${brandId}`)?.checked, val: document.getElementById(`r-${brandId}`)?.value, cents: document.getElementById(`r-${brandId}`)?.dataset.cents },
-      m: { checked: document.getElementById(`m-c-${brandId}`)?.checked, val: document.getElementById(`m-${brandId}`)?.value, cents: document.getElementById(`m-${brandId}`)?.dataset.cents, qty: document.getElementById(`mq-${brandId}`)?.value },
-      sm: { checked: document.getElementById(`sm-c-${brandId}`)?.checked, val: document.getElementById(`sm-${brandId}`)?.value, cents: document.getElementById(`sm-${brandId}`)?.dataset.cents, qty: document.getElementById(`smq-${brandId}`)?.value },
-      rc: { checked: document.getElementById(`rc-c-${brandId}`)?.checked, val: document.getElementById(`rc-${brandId}`)?.value, cents: document.getElementById(`rc-${brandId}`)?.dataset.cents, qty: document.getElementById(`rcq-${brandId}`)?.value },
     };
   });
   const c = document.getElementById('price-entries');
@@ -1252,9 +1268,8 @@ function buildPriceEntries() {
       <div class="price-tier-row"><input type="checkbox" class="tier-check" id="s-c-${brandId}" onchange="toggleTier(this,'s-${brandId}')"><div class="tier-dot" style="background:#ccc;"></div><label class="tier-label" for="s-c-${brandId}">Shelf (single)</label><input type="number" class="tier-input" id="s-${brandId}" placeholder="0.00" step="0.01" min="0" inputmode="numeric" onkeydown="calcInput(event)" data-cents="0" disabled></div>
       <div class="price-tier-row"><input type="checkbox" class="tier-check" id="sl-c-${brandId}" onchange="toggleTier(this,'sl-${brandId}')"><div class="tier-dot" style="background:#F1948A;"></div><label class="tier-label" for="sl-c-${brandId}">Sale (single)</label><input type="number" class="tier-input" id="sl-${brandId}" placeholder="0.00" step="0.01" min="0" inputmode="numeric" onkeydown="calcInput(event)" data-cents="0" disabled></div>
       <div class="price-tier-row"><input type="checkbox" class="tier-check" id="r-c-${brandId}" onchange="toggleTier(this,'r-${brandId}')"><div class="tier-dot" style="background:#9FE1CB;"></div><label class="tier-label" for="r-c-${brandId}">Rewards (single)</label><input type="number" class="tier-input" id="r-${brandId}" placeholder="0.00" step="0.01" min="0" inputmode="numeric" onkeydown="calcInput(event)" data-cents="0" disabled></div>
-      <div class="price-tier-row"><input type="checkbox" class="tier-check" id="m-c-${brandId}" onchange="toggleTier(this,'m-${brandId}','mq-${brandId}')"><div class="tier-dot" style="background:#FAC775;"></div><label class="tier-label" for="m-c-${brandId}">Multi-can total</label><select class="qty-select" id="mq-${brandId}" disabled>${[2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}">${n} for</option>`).join('')}</select><input type="number" class="tier-input" id="m-${brandId}" placeholder="0.00" step="0.01" min="0" inputmode="numeric" onkeydown="calcInput(event)" data-cents="0" disabled></div>
-      <div class="price-tier-row"><input type="checkbox" class="tier-check" id="sm-c-${brandId}" onchange="toggleTier(this,'sm-${brandId}','smq-${brandId}')"><div class="tier-dot" style="background:#C39BD3;"></div><label class="tier-label" for="sm-c-${brandId}">Sale multi-can</label><select class="qty-select" id="smq-${brandId}" disabled>${[2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}">${n} for</option>`).join('')}</select><input type="number" class="tier-input" id="sm-${brandId}" placeholder="0.00" step="0.01" min="0" inputmode="numeric" onkeydown="calcInput(event)" data-cents="0" disabled></div>
-      <div class="price-tier-row"><input type="checkbox" class="tier-check" id="rc-c-${brandId}" onchange="toggleTier(this,'rc-${brandId}','rcq-${brandId}')"><div class="tier-dot" style="background:#B5D4F4;"></div><label class="tier-label" for="rc-c-${brandId}">Rewards (multi-can)</label><select class="qty-select" id="rcq-${brandId}" disabled>${[2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}">${n} for</option>`).join('')}</select><input type="number" class="tier-input" id="rc-${brandId}" placeholder="0.00" step="0.01" min="0" inputmode="numeric" onkeydown="calcInput(event)" data-cents="0" disabled></div>`;
+      <div id="mc-deals-${brandId}"></div>
+      <button type="button" onclick="addMulticanDeal(${brandId})" style="margin-top:6px;width:100%;padding:7px;border:1.5px dashed var(--green);border-radius:8px;background:var(--green-light);color:var(--green-dark);font-size:12px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">+ Add multi-can deal</button>`;
     c.appendChild(block);
     // Restore saved values if they exist
     const s = saved[brandId];
@@ -1278,9 +1293,6 @@ function buildPriceEntries() {
       restore('s', 's');
       restore('sl', 'sl');
       restore('r', 'r');
-      restore('m', 'm', 'mq');
-      restore('sm', 'sm', 'smq');
-      restore('rc', 'rc', 'rcq');
     }
   });
 }
@@ -1290,6 +1302,29 @@ function toggleTier(chk, inputId, qtyId) {
   inp.disabled = !chk.checked;
   if (qtyId) document.getElementById(qtyId).disabled = !chk.checked;
   if (chk.checked) { inp.value = ''; inp.dataset.cents = '0'; inp.focus(); }
+}
+
+let mcDealCounter = 0;
+function addMulticanDeal(brandId) {
+  const container = document.getElementById('mc-deals-' + brandId);
+  if (!container) return;
+  const idx = mcDealCounter++;
+  const row = document.createElement('div');
+  row.className = 'price-tier-row';
+  row.id = 'mc-deal-row-' + idx;
+  row.style.cssText = 'gap:4px;margin-top:4px;flex-wrap:wrap;align-items:center;';
+  row.innerHTML =
+    '<select class="qty-select" id="mc-tier-' + idx + '" style="flex:0 0 auto;">' +
+    '<option value="regular">Regular</option>' +
+    '<option value="sale">Sale</option>' +
+    '<option value="rewards">Rewards</option>' +
+    '</select>' +
+    '<select class="qty-select" id="mc-qty-' + idx + '" style="flex:0 0 auto;">' +
+    [2,3,4,5,6,7,8,9,10].map(n => '<option value="' + n + '">' + n + '-can</option>').join('') +
+    '</select>' +
+    '<input type="number" class="tier-input" id="mc-total-' + idx + '" placeholder="Total $" step="0.01" min="0" inputmode="numeric" onkeydown="calcInput(event)" data-cents="0" data-brand="' + brandId + '" style="flex:1;">' +
+    '<button type="button" onclick="document.getElementById('mc-deal-row-' + idx + '').remove()" style="background:none;border:none;color:var(--text-muted);font-size:16px;cursor:pointer;padding:0 4px;">x</button>';
+  container.appendChild(row);
 }
 
 function calcInput(e) {
@@ -1335,19 +1370,20 @@ async function validatePrices() {
       if (val < 1.50) priceBlocks.push({ label: t.label, price: val });
       else if (val > 12.00) priceWarnings.push({ label: t.label, price: val });
     }
-    const multiTiers = [
-      { chkId: 'm-c-'+brandId, valId: 'm-'+brandId, qtyId: 'mq-'+brandId, label: bName+' Shelf (multi-can)' },
-      { chkId: 'sm-c-'+brandId, valId: 'sm-'+brandId, qtyId: 'smq-'+brandId, label: bName+' Sale (multi-can)' },
-      { chkId: 'rc-c-'+brandId, valId: 'rc-'+brandId, qtyId: 'rcq-'+brandId, label: bName+' Rewards (multi-can)' },
-    ];
-    for (const t of multiTiers) {
-      if (!get(t.chkId) || !get(t.chkId).checked) continue;
-      const total = parseFloat(get(t.valId) && get(t.valId).value);
-      const qty = parseInt(get(t.qtyId) && get(t.qtyId).value);
-      if (!total || !qty) continue;
-      const perCan = total / qty;
-      if (perCan < 1.50) priceBlocks.push({ label: t.label, price: perCan, isPerCan: true });
-      else if (perCan > 12.00) priceWarnings.push({ label: t.label, price: perCan, isPerCan: true });
+    // Validate dynamic multi-can deals
+    const mcContainer = document.getElementById('mc-deals-' + brandId);
+    if (mcContainer) {
+      mcContainer.querySelectorAll('[id^="mc-deal-row-"]').forEach(row => {
+        const idx = row.id.replace('mc-deal-row-', '');
+        const tier = document.getElementById('mc-tier-' + idx)?.value;
+        const qty = parseInt(document.getElementById('mc-qty-' + idx)?.value);
+        const total = parseFloat(document.getElementById('mc-total-' + idx)?.value);
+        if (!total || !qty) return;
+        const perCan = total / qty;
+        const label = bName + ' ' + (tier||'') + ' multi-can (' + qty + '-can)';
+        if (perCan < 1.50) priceBlocks.push({ label, price: perCan, isPerCan: true });
+        else if (perCan > 12.00) priceWarnings.push({ label, price: perCan, isPerCan: true });
+      });
     }
   }
   if (priceBlocks.length > 0) {
@@ -1376,14 +1412,20 @@ async function submitPrices() {
     const shelf = get(`s-c-${brandId}`)?.checked ? parseFloat(get(`s-${brandId}`)?.value)||null : null;
     const sale = get(`sl-c-${brandId}`)?.checked ? parseFloat(get(`sl-${brandId}`)?.value)||null : null;
     const rew = get(`r-c-${brandId}`)?.checked ? parseFloat(get(`r-${brandId}`)?.value)||null : null;
-    const mcQty = get(`m-c-${brandId}`)?.checked ? parseInt(get(`mq-${brandId}`)?.value)||null : null;
-    const mcTotal = get(`m-c-${brandId}`)?.checked ? parseFloat(get(`m-${brandId}`)?.value)||null : null;
-    const smQty = get(`sm-c-${brandId}`)?.checked ? parseInt(get(`smq-${brandId}`)?.value)||null : null;
-    const smTotal = get(`sm-c-${brandId}`)?.checked ? parseFloat(get(`sm-${brandId}`)?.value)||null : null;
-    const rmcQty = get(`rc-c-${brandId}`)?.checked ? parseInt(get(`rcq-${brandId}`)?.value)||null : null;
-    const rmcTotal = get(`rc-c-${brandId}`)?.checked ? parseFloat(get(`rc-${brandId}`)?.value)||null : null;
-    if (!shelf&&!sale&&!rew&&!mcTotal&&!smTotal&&!rmcTotal) continue;
-    reports.push({ store_id:selectedStoreId, brand_id:brandId, shelf_price:shelf, sale_price:sale, rewards_price:rew, multican_qty:mcQty, multican_total:mcTotal, sale_multican_qty:smQty, sale_multican_total:smTotal, rewards_multican_qty:rmcQty, rewards_multican_total:rmcTotal, updated_at:new Date().toISOString() }); // best_price, multican_price_per_can etc are generated columns - never send them
+    // Collect multi-can deals from dynamic rows
+    const mcDeals = [];
+    const mcContainer = document.getElementById('mc-deals-' + brandId);
+    if (mcContainer) {
+      mcContainer.querySelectorAll('[id^="mc-deal-row-"]').forEach(row => {
+        const idx = row.id.replace('mc-deal-row-', '');
+        const tier = document.getElementById('mc-tier-' + idx)?.value;
+        const qty = parseInt(document.getElementById('mc-qty-' + idx)?.value);
+        const total = parseFloat(document.getElementById('mc-total-' + idx)?.value);
+        if (tier && qty && total > 0) mcDeals.push({ tier, qty, total });
+      });
+    }
+    if (!shelf&&!sale&&!rew&&!mcDeals.length) continue;
+    reports.push({ store_id:selectedStoreId, brand_id:brandId, shelf_price:shelf, sale_price:sale, rewards_price:rew, updated_at:new Date().toISOString(), mcDeals }); // mcDeals submitted separately to prices_multican
   }
   if (!reports.length) { btn.disabled=false; btn.textContent='Enter at least one price'; return; }
   try {
@@ -1395,14 +1437,11 @@ async function submitPrices() {
       if (m) reportStoreState = m[1];
     }
 
-    // 6 price categories for per-category change flagging
+    // Price categories for per-category change flagging (single prices only)
     const PRICE_CATEGORIES = [
-      { report: 'shelf_price',             old: 'shelf_price',             flag: 'shelf_change_flagged',            pending: 'pending_shelf_price',          dir: 'shelf_change_direction' },
-      { report: 'sale_price',              old: 'sale_price',              flag: 'sale_change_flagged',             pending: 'pending_sale_price',           dir: 'sale_change_direction' },
-      { report: 'rewards_price',           old: 'rewards_price',           flag: 'rewards_change_flagged',          pending: 'pending_rewards_price',        dir: 'rewards_change_direction' },
-      { report: 'multican_total',          old: 'multican_total',          flag: 'multican_change_flagged',         pending: 'pending_multican_price',       dir: 'multican_change_direction' },
-      { report: 'sale_multican_total',     old: 'sale_multican_total',     flag: 'sale_multican_change_flagged',    pending: 'pending_sale_multican_price',  dir: 'sale_multican_change_direction' },
-      { report: 'rewards_multican_total',  old: 'rewards_multican_total',  flag: 'rewards_multican_change_flagged', pending: 'pending_rewards_multican_price',dir: 'rewards_multican_change_direction' },
+      { report: 'shelf_price',   old: 'shelf_price',   flag: 'shelf_change_flagged',   pending: 'pending_shelf_price',   dir: 'shelf_change_direction' },
+      { report: 'sale_price',    old: 'sale_price',    flag: 'sale_change_flagged',     pending: 'pending_sale_price',    dir: 'sale_change_direction' },
+      { report: 'rewards_price', old: 'rewards_price', flag: 'rewards_change_flagged',  pending: 'pending_rewards_price', dir: 'rewards_change_direction' },
     ];
 
     // Use PATCH for existing rows, POST for new rows, then flag chain stores per category
@@ -1470,6 +1509,46 @@ async function submitPrices() {
           await sb('prices', { method: 'POST', prefer: 'return=minimal', body: JSON.stringify(report) });
         }
       } catch(e) { console.error('Submit error for brand', report.brand_id, e.message); }
+
+      // Submit multi-can deals to prices_multican table
+      if (report.mcDeals && report.mcDeals.length > 0) {
+        for (const deal of report.mcDeals) {
+          try {
+            // Upsert — insert or update if same store/brand/tier/qty exists
+            await sb('prices_multican', {
+              method: 'POST',
+              prefer: 'resolution=merge-duplicates,return=minimal',
+              body: JSON.stringify({
+                store_id: report.store_id,
+                brand_id: parseInt(report.brand_id),
+                tier: deal.tier,
+                qty: deal.qty,
+                total: deal.total,
+                updated_at: new Date().toISOString()
+              })
+            });
+            // Propagate to chain stores that don't have this exact deal
+            if (reportStore?.chain && reportStoreState) {
+              const chainStores = await sb('stores?chain=eq.' + encodeURIComponent(reportStore.chain) + '&state=eq.' + reportStoreState + '&select=id');
+              await Promise.all(chainStores
+                .filter(cs => String(cs.id) !== String(report.store_id))
+                .map(cs => sb('prices_multican', {
+                  method: 'POST',
+                  prefer: 'resolution=ignore-duplicates,return=minimal',
+                  body: JSON.stringify({
+                    store_id: cs.id,
+                    brand_id: parseInt(report.brand_id),
+                    tier: deal.tier,
+                    qty: deal.qty,
+                    total: deal.total,
+                    updated_at: new Date().toISOString()
+                  })
+                }))
+              );
+            }
+          } catch(e) { console.error('Multi-can deal submit error:', e.message); }
+        }
+      }
     }
     sessionReportsCount += reports.length;
 
