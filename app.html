@@ -271,7 +271,7 @@ html,body { height:100%; font-family:'DM Sans',sans-serif; background:var(--surf
       <div class="filter-dropdown-row"><input type="checkbox" id="ft-shelf" checked onchange="toggleTierFilter('shelf', event)"> <label for="ft-shelf" style="cursor:pointer;">Shelf (single)</label></div>
       <div class="filter-dropdown-row"><input type="checkbox" id="ft-sale" checked onchange="toggleTierFilter('sale', event)"> <label for="ft-sale" style="cursor:pointer;">Sale (single)</label></div>
       <div class="filter-dropdown-row"><input type="checkbox" id="ft-rewards" checked onchange="toggleTierFilter('rewards', event)"> <label for="ft-rewards" style="cursor:pointer;">Rewards (single)</label></div>
-      <div class="filter-dropdown-row"><input type="checkbox" id="ft-multican" checked onchange="toggleTierFilter('multican', event)"> <label for="ft-multican" style="cursor:pointer;">Multi-can</label></div>
+      <div class="filter-dropdown-row"><input type="checkbox" id="ft-multican" checked onchange="toggleTierFilter('multican', event)"> <label for="ft-multican" style="cursor:pointer;">Shelf (multi-can)</label></div>
       <div class="filter-dropdown-row"><input type="checkbox" id="ft-sale_multican" checked onchange="toggleTierFilter('sale_multican', event)"> <label for="ft-sale_multican" style="cursor:pointer;">Sale (multi-can)</label></div>
       <div class="filter-dropdown-row"><input type="checkbox" id="ft-rewards_multican" checked onchange="toggleTierFilter('rewards_multican', event)"> <label for="ft-rewards_multican" style="cursor:pointer;">Rewards (multi-can)</label></div>
     </div>
@@ -1271,13 +1271,13 @@ function buildPriceEntries() {
       <div class="price-tier-row"><input type="checkbox" class="tier-check" id="s-c-${brandId}" onchange="toggleTier(this,'s-${brandId}')"><div class="tier-dot" style="background:#ccc;"></div><label class="tier-label" for="s-c-${brandId}">Shelf (single)</label><input type="number" class="tier-input" id="s-${brandId}" placeholder="0.00" step="0.01" min="0" inputmode="numeric" onkeydown="calcInput(event)" data-cents="0" disabled></div>
       <div class="price-tier-row"><input type="checkbox" class="tier-check" id="sl-c-${brandId}" onchange="toggleTier(this,'sl-${brandId}')"><div class="tier-dot" style="background:#F1948A;"></div><label class="tier-label" for="sl-c-${brandId}">Sale (single)</label><input type="number" class="tier-input" id="sl-${brandId}" placeholder="0.00" step="0.01" min="0" inputmode="numeric" onkeydown="calcInput(event)" data-cents="0" disabled></div>
       <div class="price-tier-row"><input type="checkbox" class="tier-check" id="r-c-${brandId}" onchange="toggleTier(this,'r-${brandId}')"><div class="tier-dot" style="background:#9FE1CB;"></div><label class="tier-label" for="r-c-${brandId}">Rewards (single)</label><input type="number" class="tier-input" id="r-${brandId}" placeholder="0.00" step="0.01" min="0" inputmode="numeric" onkeydown="calcInput(event)" data-cents="0" disabled></div>
-      <div class="price-tier-row"><input type="checkbox" class="tier-check" id="mc-shelf-c-${brandId}" onchange="toggleMcTier(this,'${brandId}','shelf')"><div class="tier-dot" style="background:#FAC775;"></div><label class="tier-label" for="mc-shelf-c-${brandId}">Shelf (multi-can)</label></div>
+      <div class="price-tier-row"><input type="checkbox" class="tier-check" id="mc-shelf-c-${brandId}" onchange="toggleMcTier(this,'${brandId}','shelf')"><div class="tier-dot" style="background:#FAC775;"></div><label class="tier-label" for="mc-shelf-c-${brandId}">Shelf (multi-can)</label><select class="qty-select" id="mc-shelf-qty-${brandId}" disabled>${[2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}">${n}</option>`).join('')}</select><span class="tier-label" style="flex:0;">for</span><input type="number" class="tier-input" id="mc-shelf-total-${brandId}" placeholder="0.00" step="0.01" min="0" inputmode="numeric" onkeydown="calcInput(event)" data-cents="0" data-brand="${brandId}" data-tier="shelf" disabled></div>
       <div id="mc-deals-shelf-${brandId}"></div>
       <button type="button" id="mc-add-shelf-${brandId}" onclick="addMulticanDeal(${brandId},'shelf')" style="display:none;margin-left:24px;margin-bottom:4px;padding:3px 10px;border:1px dashed #FAC775;border-radius:6px;background:#FFF8E1;color:#7B5800;font-size:11px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">+ Add another shelf deal</button>
-      <div class="price-tier-row"><input type="checkbox" class="tier-check" id="mc-sale-c-${brandId}" onchange="toggleMcTier(this,'${brandId}','sale')"><div class="tier-dot" style="background:#C39BD3;"></div><label class="tier-label" for="mc-sale-c-${brandId}">Sale (multi-can)</label></div>
+      <div class="price-tier-row"><input type="checkbox" class="tier-check" id="mc-sale-c-${brandId}" onchange="toggleMcTier(this,'${brandId}','sale')"><div class="tier-dot" style="background:#C39BD3;"></div><label class="tier-label" for="mc-sale-c-${brandId}">Sale (multi-can)</label><select class="qty-select" id="mc-sale-qty-${brandId}" disabled>${[2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}">${n}</option>`).join('')}</select><span class="tier-label" style="flex:0;">for</span><input type="number" class="tier-input" id="mc-sale-total-${brandId}" placeholder="0.00" step="0.01" min="0" inputmode="numeric" onkeydown="calcInput(event)" data-cents="0" data-brand="${brandId}" data-tier="sale" disabled></div>
       <div id="mc-deals-sale-${brandId}"></div>
       <button type="button" id="mc-add-sale-${brandId}" onclick="addMulticanDeal(${brandId},'sale')" style="display:none;margin-left:24px;margin-bottom:4px;padding:3px 10px;border:1px dashed #C39BD3;border-radius:6px;background:#F5EEF8;color:#6C3483;font-size:11px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">+ Add another sale deal</button>
-      <div class="price-tier-row"><input type="checkbox" class="tier-check" id="mc-rewards-c-${brandId}" onchange="toggleMcTier(this,'${brandId}','rewards')"><div class="tier-dot" style="background:#B5D4F4;"></div><label class="tier-label" for="mc-rewards-c-${brandId}">Rewards (multi-can)</label></div>
+      <div class="price-tier-row"><input type="checkbox" class="tier-check" id="mc-rewards-c-${brandId}" onchange="toggleMcTier(this,'${brandId}','rewards')"><div class="tier-dot" style="background:#B5D4F4;"></div><label class="tier-label" for="mc-rewards-c-${brandId}">Rewards (multi-can)</label><select class="qty-select" id="mc-rewards-qty-${brandId}" disabled>${[2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}">${n}</option>`).join('')}</select><span class="tier-label" style="flex:0;">for</span><input type="number" class="tier-input" id="mc-rewards-total-${brandId}" placeholder="0.00" step="0.01" min="0" inputmode="numeric" onkeydown="calcInput(event)" data-cents="0" data-brand="${brandId}" data-tier="rewards" disabled></div>
       <div id="mc-deals-rewards-${brandId}"></div>
       <button type="button" id="mc-add-rewards-${brandId}" onclick="addMulticanDeal(${brandId},'rewards')" style="display:none;margin-left:24px;margin-bottom:4px;padding:3px 10px;border:1px dashed #B5D4F4;border-radius:6px;background:#EAF4FE;color:#1A5276;font-size:11px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">+ Add another rewards deal</button>`;
     c.appendChild(block);
@@ -1327,12 +1327,17 @@ function removeMcDeal(btn) {
 }
 
 function toggleMcTier(chk, brandId, tier) {
+  const qtyEl = document.getElementById('mc-' + tier + '-qty-' + brandId);
+  const totalEl = document.getElementById('mc-' + tier + '-total-' + brandId);
   const container = document.getElementById('mc-deals-' + tier + '-' + brandId);
   const addBtn = document.getElementById('mc-add-' + tier + '-' + brandId);
   if (chk.checked) {
-    addMulticanDeal(brandId, tier);
+    if (qtyEl) qtyEl.disabled = false;
+    if (totalEl) { totalEl.disabled = false; totalEl.value = ''; totalEl.dataset.cents = '0'; totalEl.focus(); }
     if (addBtn) addBtn.style.display = 'inline-block';
   } else {
+    if (qtyEl) qtyEl.disabled = true;
+    if (totalEl) { totalEl.disabled = true; totalEl.value = ''; totalEl.dataset.cents = '0'; }
     if (container) container.innerHTML = '';
     if (addBtn) addBtn.style.display = 'none';
   }
@@ -1400,20 +1405,19 @@ async function validatePrices() {
       if (val < 1.50) priceBlocks.push({ label: t.label, price: val });
       else if (val > 12.00) priceWarnings.push({ label: t.label, price: val });
     }
-    // Validate dynamic multi-can deals
-    const mcParentV = document.getElementById('price-entries');
-    if (mcParentV) {
-      mcParentV.querySelectorAll('[id^="mc-deal-row-"]').forEach(row => {
-        const idx = row.id.replace('mc-deal-row-', '');
-        const tier = document.getElementById('mc-tier-' + idx)?.value;
-        const qty = parseInt(document.getElementById('mc-qty-' + idx)?.value);
-        const total = parseFloat(document.getElementById('mc-total-' + idx)?.value);
-        if (!total || !qty) return;
-        const perCan = total / qty;
-        const label = bName + ' ' + (tier||'') + ' multi-can (' + qty + '-can)';
-        if (perCan < 1.50) priceBlocks.push({ label, price: perCan, isPerCan: true });
-        else if (perCan > 12.00) priceWarnings.push({ label, price: perCan, isPerCan: true });
-      });
+    // Validate multi-can deals
+    for (const tier of ['shelf', 'sale', 'rewards']) {
+      const chkV = document.getElementById('mc-' + tier + '-c-' + brandId);
+      if (chkV?.checked) {
+        const qty = parseInt(document.getElementById('mc-' + tier + '-qty-' + brandId)?.value);
+        const total = parseFloat(document.getElementById('mc-' + tier + '-total-' + brandId)?.value);
+        if (total && qty) {
+          const perCan = total / qty;
+          const label = bName + ' ' + tier + ' multi-can (' + qty + '-can)';
+          if (perCan < 1.50) priceBlocks.push({ label, price: perCan, isPerCan: true });
+          else if (perCan > 12.00) priceWarnings.push({ label, price: perCan, isPerCan: true });
+        }
+      }
     }
   }
   if (priceBlocks.length > 0) {
@@ -1442,17 +1446,25 @@ async function submitPrices() {
     const shelf = get(`s-c-${brandId}`)?.checked ? parseFloat(get(`s-${brandId}`)?.value)||null : null;
     const sale = get(`sl-c-${brandId}`)?.checked ? parseFloat(get(`sl-${brandId}`)?.value)||null : null;
     const rew = get(`r-c-${brandId}`)?.checked ? parseFloat(get(`r-${brandId}`)?.value)||null : null;
-    // Collect multi-can deals from all tier containers
+    // Collect multi-can deals from inline rows and additional deal rows
     const mcDeals = [];
-    const mcParent = document.getElementById('price-entries');
-    if (mcParent) {
-      mcParent.querySelectorAll('[id^="mc-deal-row-"]').forEach(row => {
-        const idx = row.id.replace('mc-deal-row-', '');
-        const tier = document.getElementById('mc-tier-' + idx)?.value;
-        const qty = parseInt(document.getElementById('mc-qty-' + idx)?.value);
-        const total = parseFloat(document.getElementById('mc-total-' + idx)?.value);
-        if (tier && qty && total > 0) mcDeals.push({ tier, qty, total });
-      });
+    for (const tier of ['shelf', 'sale', 'rewards']) {
+      const chk = document.getElementById('mc-' + tier + '-c-' + brandId);
+      if (chk?.checked) {
+        const qty = parseInt(document.getElementById('mc-' + tier + '-qty-' + brandId)?.value);
+        const total = parseFloat(document.getElementById('mc-' + tier + '-total-' + brandId)?.value);
+        if (qty && total > 0) mcDeals.push({ tier, qty, total });
+      }
+      // Also collect additional deal rows for this tier
+      const container = document.getElementById('mc-deals-' + tier + '-' + brandId);
+      if (container) {
+        container.querySelectorAll('[id^="mc-deal-row-"]').forEach(row => {
+          const idx = row.id.replace('mc-deal-row-', '');
+          const qty = parseInt(document.getElementById('mc-qty-' + idx)?.value);
+          const total = parseFloat(document.getElementById('mc-total-' + idx)?.value);
+          if (qty && total > 0) mcDeals.push({ tier, qty, total });
+        });
+      }
     }
     if (!shelf&&!sale&&!rew&&!mcDeals.length) continue;
     reports.push({ store_id:selectedStoreId, brand_id:brandId, shelf_price:shelf, sale_price:sale, rewards_price:rew, updated_at:new Date().toISOString(), mcDeals }); // mcDeals submitted separately to prices_multican
@@ -1544,6 +1556,11 @@ async function submitPrices() {
       if (report.mcDeals && report.mcDeals.length > 0) {
         for (const deal of report.mcDeals) {
           try {
+            // Check if existing deal has different total - if so flag chain stores
+            const existingDeal = await sb('prices_multican?store_id=eq.' + report.store_id + '&brand_id=eq.' + parseInt(report.brand_id) + '&tier=eq.' + deal.tier + '&qty=eq.' + deal.qty + '&select=total&limit=1');
+            const isUpdate = existingDeal && existingDeal.length > 0;
+            const oldTotal = isUpdate ? parseFloat(existingDeal[0].total) : null;
+            const priceChanged = isUpdate && oldTotal !== deal.total;
             // Delete existing deal for same store/brand/tier/qty then insert fresh
             await sb('prices_multican?store_id=eq.' + report.store_id + '&brand_id=eq.' + parseInt(report.brand_id) + '&tier=eq.' + deal.tier + '&qty=eq.' + deal.qty, { method: 'DELETE', prefer: 'return=minimal' });
             await sb('prices_multican', {
@@ -1558,6 +1575,24 @@ async function submitPrices() {
                 updated_at: new Date().toISOString()
               })
             });
+            // Flag chain stores if price changed
+            if (priceChanged && reportStore?.chain && reportStoreState) {
+              const newPerCan = deal.total / deal.qty;
+              const oldPerCan = oldTotal / deal.qty;
+              const direction = newPerCan < oldPerCan ? 'down' : 'up';
+              const flagField = deal.tier === 'shelf' ? 'multican_change_flagged' : (deal.tier === 'sale' ? 'sale_multican_change_flagged' : 'rewards_multican_change_flagged');
+              const pendingField = deal.tier === 'shelf' ? 'pending_multican_price' : (deal.tier === 'sale' ? 'pending_sale_multican_price' : 'pending_rewards_multican_price');
+              const dirField = deal.tier === 'shelf' ? 'multican_change_direction' : (deal.tier === 'sale' ? 'sale_multican_change_direction' : 'rewards_multican_change_direction');
+              const flagUpdate = {};
+              flagUpdate[flagField] = true;
+              flagUpdate[pendingField] = deal.total;
+              flagUpdate[dirField] = direction;
+              flagUpdate.price_change_reported_at = new Date().toISOString();
+              await sb('rpc/flag_chain_price_changes', {
+                method: 'POST',
+                body: JSON.stringify({ p_store_id: report.store_id, p_brand_id: parseInt(report.brand_id), p_updates: flagUpdate })
+              });
+            }
             // Propagate to chain stores that don't already have this exact deal
             if (reportStore?.chain && reportStoreState) {
               const chainStores = await sb('stores?chain=eq.' + encodeURIComponent(reportStore.chain) + '&state=eq.' + reportStoreState + '&select=id');
