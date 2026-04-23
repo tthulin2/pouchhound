@@ -822,7 +822,7 @@ function getActiveBestPrice(p) {
   if (activeTiers.has('shelf') && p.shelf_price) candidates.push(p.shelf_price);
   if (activeTiers.has('sale') && p.sale_price) candidates.push(p.sale_price);
   if (activeTiers.has('rewards') && p.rewards_price) candidates.push(p.rewards_price);
-  const tierActiveTier = { regular: 'multican', sale: 'sale_multican', rewards: 'rewards_multican' };
+  const tierActiveTier = { shelf: 'multican', sale: 'sale_multican', rewards: 'rewards_multican' };
   (p.multican_deals || []).forEach(d => {
     if (activeTiers.has(tierActiveTier[d.tier])) candidates.push(d.price_per_can);
   });
@@ -886,9 +886,9 @@ function renderStores() {
         if (p.sale_price && activeTiers.has('sale')) pills.push(`<span class="pill pill-sale">Sale (single) $${Number(p.sale_price).toFixed(2)}</span>`);
         if (p.rewards_price && activeTiers.has('rewards')) pills.push(`<span class="pill pill-rewards">Rewards (single) $${Number(p.rewards_price).toFixed(2)}</span>`);
         // Multi-can pills from prices_multican
-        const tierPillClass = { regular: 'pill-multi', sale: 'pill-sale-multi', rewards: 'pill-combo' };
-        const tierActiveTier = { regular: 'multican', sale: 'sale_multican', rewards: 'rewards_multican' };
-        const tierLabel = { regular: '', sale: 'Sale ', rewards: 'Rewards ' };
+        const tierPillClass = { shelf: 'pill-multi', sale: 'pill-sale-multi', rewards: 'pill-combo' };
+        const tierActiveTier = { shelf: 'multican', sale: 'sale_multican', rewards: 'rewards_multican' };
+        const tierLabel = { shelf: 'Shelf ', sale: 'Sale ', rewards: 'Rewards ' };
         (p.multican_deals || []).forEach(d => {
           if (activeTiers.has(tierActiveTier[d.tier])) {
             pills.push(`<span class="pill ${tierPillClass[d.tier]}">${tierLabel[d.tier]}${d.qty}-can $${Number(d.price_per_can).toFixed(2)}/can</span>`);
@@ -1268,8 +1268,15 @@ function buildPriceEntries() {
       <div class="price-tier-row"><input type="checkbox" class="tier-check" id="s-c-${brandId}" onchange="toggleTier(this,'s-${brandId}')"><div class="tier-dot" style="background:#ccc;"></div><label class="tier-label" for="s-c-${brandId}">Shelf (single)</label><input type="number" class="tier-input" id="s-${brandId}" placeholder="0.00" step="0.01" min="0" inputmode="numeric" onkeydown="calcInput(event)" data-cents="0" disabled></div>
       <div class="price-tier-row"><input type="checkbox" class="tier-check" id="sl-c-${brandId}" onchange="toggleTier(this,'sl-${brandId}')"><div class="tier-dot" style="background:#F1948A;"></div><label class="tier-label" for="sl-c-${brandId}">Sale (single)</label><input type="number" class="tier-input" id="sl-${brandId}" placeholder="0.00" step="0.01" min="0" inputmode="numeric" onkeydown="calcInput(event)" data-cents="0" disabled></div>
       <div class="price-tier-row"><input type="checkbox" class="tier-check" id="r-c-${brandId}" onchange="toggleTier(this,'r-${brandId}')"><div class="tier-dot" style="background:#9FE1CB;"></div><label class="tier-label" for="r-c-${brandId}">Rewards (single)</label><input type="number" class="tier-input" id="r-${brandId}" placeholder="0.00" step="0.01" min="0" inputmode="numeric" onkeydown="calcInput(event)" data-cents="0" disabled></div>
-      <div id="mc-deals-${brandId}"></div>
-      <button type="button" onclick="addMulticanDeal(${brandId})" style="margin-top:6px;width:100%;padding:7px;border:1.5px dashed var(--green);border-radius:8px;background:var(--green-light);color:var(--green-dark);font-size:12px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">+ Add multi-can deal</button>`;
+      <div class="price-tier-row" style="opacity:0.5;pointer-events:none;"><div class="tier-dot" style="background:#FAC775;"></div><label class="tier-label">Shelf (multi-can)</label></div>
+      <div id="mc-deals-shelf-${brandId}"></div>
+      <button type="button" onclick="addMulticanDeal(${brandId},'shelf')" style="margin-left:24px;margin-bottom:4px;padding:3px 10px;border:1px dashed #FAC775;border-radius:6px;background:#FFF8E1;color:#7B5800;font-size:11px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">+ Add shelf multi-can deal</button>
+      <div class="price-tier-row" style="opacity:0.5;pointer-events:none;"><div class="tier-dot" style="background:#C39BD3;"></div><label class="tier-label">Sale (multi-can)</label></div>
+      <div id="mc-deals-sale-${brandId}"></div>
+      <button type="button" onclick="addMulticanDeal(${brandId},'sale')" style="margin-left:24px;margin-bottom:4px;padding:3px 10px;border:1px dashed #C39BD3;border-radius:6px;background:#F5EEF8;color:#6C3483;font-size:11px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">+ Add sale multi-can deal</button>
+      <div class="price-tier-row" style="opacity:0.5;pointer-events:none;"><div class="tier-dot" style="background:#B5D4F4;"></div><label class="tier-label">Rewards (multi-can)</label></div>
+      <div id="mc-deals-rewards-${brandId}"></div>
+      <button type="button" onclick="addMulticanDeal(${brandId},'rewards')" style="margin-left:24px;margin-bottom:4px;padding:3px 10px;border:1px dashed #B5D4F4;border-radius:6px;background:#EAF4FE;color:#1A5276;font-size:11px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">+ Add rewards multi-can deal</button>`;
     c.appendChild(block);
     // Restore saved values if they exist
     const s = saved[brandId];
@@ -1306,20 +1313,16 @@ function toggleTier(chk, inputId, qtyId) {
 
 let mcDealCounter = 0;
 function removeMcDeal(btn) { btn.parentElement.remove(); }
-function addMulticanDeal(brandId) {
-  const container = document.getElementById('mc-deals-' + brandId);
+function addMulticanDeal(brandId, tier) {
+  const container = document.getElementById('mc-deals-' + tier + '-' + brandId);
   if (!container) return;
   const idx = mcDealCounter++;
   const row = document.createElement('div');
   row.className = 'price-tier-row';
   row.id = 'mc-deal-row-' + idx;
-  row.style.cssText = 'gap:4px;margin-top:4px;flex-wrap:wrap;align-items:center;';
+  row.style.cssText = 'gap:4px;margin-top:2px;margin-left:24px;flex-wrap:wrap;align-items:center;';
   row.innerHTML =
-    '<select class="qty-select" id="mc-tier-' + idx + '" style="flex:0 0 auto;">' +
-    '<option value="regular">Regular</option>' +
-    '<option value="sale">Sale</option>' +
-    '<option value="rewards">Rewards</option>' +
-    '</select>' +
+    '<input type="hidden" id="mc-tier-' + idx + '" value="' + tier + '">' +
     '<select class="qty-select" id="mc-qty-' + idx + '" style="flex:0 0 auto;">' +
     [2,3,4,5,6,7,8,9,10].map(n => '<option value="' + n + '">' + n + '-can</option>').join('') +
     '</select>' +
@@ -1372,9 +1375,9 @@ async function validatePrices() {
       else if (val > 12.00) priceWarnings.push({ label: t.label, price: val });
     }
     // Validate dynamic multi-can deals
-    const mcContainer = document.getElementById('mc-deals-' + brandId);
-    if (mcContainer) {
-      mcContainer.querySelectorAll('[id^="mc-deal-row-"]').forEach(row => {
+    const mcParentV = document.getElementById('price-entries');
+    if (mcParentV) {
+      mcParentV.querySelectorAll('[id^="mc-deal-row-"]').forEach(row => {
         const idx = row.id.replace('mc-deal-row-', '');
         const tier = document.getElementById('mc-tier-' + idx)?.value;
         const qty = parseInt(document.getElementById('mc-qty-' + idx)?.value);
@@ -1413,11 +1416,11 @@ async function submitPrices() {
     const shelf = get(`s-c-${brandId}`)?.checked ? parseFloat(get(`s-${brandId}`)?.value)||null : null;
     const sale = get(`sl-c-${brandId}`)?.checked ? parseFloat(get(`sl-${brandId}`)?.value)||null : null;
     const rew = get(`r-c-${brandId}`)?.checked ? parseFloat(get(`r-${brandId}`)?.value)||null : null;
-    // Collect multi-can deals from dynamic rows
+    // Collect multi-can deals from all tier containers
     const mcDeals = [];
-    const mcContainer = document.getElementById('mc-deals-' + brandId);
-    if (mcContainer) {
-      mcContainer.querySelectorAll('[id^="mc-deal-row-"]').forEach(row => {
+    const mcParent = document.getElementById('price-entries');
+    if (mcParent) {
+      mcParent.querySelectorAll('[id^="mc-deal-row-"]').forEach(row => {
         const idx = row.id.replace('mc-deal-row-', '');
         const tier = document.getElementById('mc-tier-' + idx)?.value;
         const qty = parseInt(document.getElementById('mc-qty-' + idx)?.value);
@@ -1450,7 +1453,7 @@ async function submitPrices() {
       try {
         const existing = await sb('prices?store_id=eq.' + report.store_id + '&brand_id=eq.' + parseInt(report.brand_id) +
           '&select=id,shelf_price,sale_price,rewards_price,multican_total,sale_multican_total,rewards_multican_total&limit=1');
-        const { store_id, brand_id, ...allFields } = report;
+        const { store_id, brand_id, mcDeals, ...allFields } = report;
         // Only include non-null fields to avoid overwriting existing data
         const updateFields = Object.fromEntries(Object.entries(allFields).filter(([k,v]) => v !== null && v !== undefined));
         updateFields.updated_at = new Date().toISOString();
@@ -1515,10 +1518,11 @@ async function submitPrices() {
       if (report.mcDeals && report.mcDeals.length > 0) {
         for (const deal of report.mcDeals) {
           try {
-            // Upsert — insert or update if same store/brand/tier/qty exists
+            // Delete existing deal for same store/brand/tier/qty then insert fresh
+            await sb('prices_multican?store_id=eq.' + report.store_id + '&brand_id=eq.' + parseInt(report.brand_id) + '&tier=eq.' + deal.tier + '&qty=eq.' + deal.qty, { method: 'DELETE', prefer: 'return=minimal' });
             await sb('prices_multican', {
               method: 'POST',
-              prefer: 'resolution=merge-duplicates,return=minimal',
+              prefer: 'return=minimal',
               body: JSON.stringify({
                 store_id: report.store_id,
                 brand_id: parseInt(report.brand_id),
@@ -1533,18 +1537,22 @@ async function submitPrices() {
               const chainStores = await sb('stores?chain=eq.' + encodeURIComponent(reportStore.chain) + '&state=eq.' + reportStoreState + '&select=id');
               await Promise.all(chainStores
                 .filter(cs => String(cs.id) !== String(report.store_id))
-                .map(cs => sb('prices_multican', {
-                  method: 'POST',
-                  prefer: 'resolution=ignore-duplicates,return=minimal',
-                  body: JSON.stringify({
-                    store_id: cs.id,
-                    brand_id: parseInt(report.brand_id),
-                    tier: deal.tier,
-                    qty: deal.qty,
-                    total: deal.total,
-                    updated_at: new Date().toISOString()
-                  })
-                }))
+                .map(async cs => {
+                  try {
+                    await sb('prices_multican', {
+                      method: 'POST',
+                      prefer: 'return=minimal',
+                      body: JSON.stringify({
+                        store_id: cs.id,
+                        brand_id: parseInt(report.brand_id),
+                        tier: deal.tier,
+                        qty: deal.qty,
+                        total: deal.total,
+                        updated_at: new Date().toISOString()
+                      })
+                    });
+                  } catch(e) { /* already exists, skip */ }
+                })
               );
             }
           } catch(e) { console.error('Multi-can deal submit error:', e.message); }
