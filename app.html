@@ -938,10 +938,11 @@ function renderStores() {
             if (!deals.length) continue;
             const deal = deals[0];
             const pendingPerCan = pendingVal / deal.qty;
-            const currentPerCan = deal.price_per_can;
             wp = '$' + Number(pendingPerCan).toFixed(2) + '/can';
             direction = pendingVal < deal.total ? 'down' : 'up';
             catLabel = wcat.mcTier + ' multi-can (' + deal.qty + '-can)';
+            wcat._qty = deal.qty; // store qty for button
+            wcat._mcTier = wcat.mcTier;
           } else {
             if (p[wcat.current] == null) continue;
             wp = '$' + Number(pendingVal).toFixed(2);
@@ -951,11 +952,12 @@ function renderStores() {
           const dirWord = direction === 'down' ? 'lower' : 'higher';
           const dirArrow = direction === 'down' ? '↓' : '↑';
           const warningId = 'warn-' + store.id + '-' + p.brand_id + '-' + wcat.flag;
+          const mcQtyAttr = wcat._qty ? ' data-mc-qty="' + wcat._qty + '" data-mc-tier="' + wcat._mcTier + '"' : '';
           brandWarning += '<div class="price-change-warning" id="' + warningId + '">' +
             '<div class="warn-text">' + dirArrow + ' ' + bName + ' ' + catLabel + ' may be ' + dirWord + ' (' + wp + ') here</div>' +
             '<div style="display:flex;gap:5px;">' +
-            '<button class="confirm-new-btn" data-store="' + store.id + '" data-brand="' + p.brand_id + '" data-price="' + pendingVal + '" data-direction="' + direction + '" data-category="' + wcat.flag + '">Yes, ' + dirWord + '</button>' +
-            '<button class="confirm-old-btn" data-store="' + store.id + '" data-brand="' + p.brand_id + '" data-price="' + pendingVal + '" data-direction="' + direction + '" data-category="' + wcat.flag + '">No, same</button>' +
+            '<button class="confirm-new-btn" data-store="' + store.id + '" data-brand="' + p.brand_id + '" data-price="' + pendingVal + '" data-direction="' + direction + '" data-category="' + wcat.flag + '"' + mcQtyAttr + '>Yes, ' + dirWord + '</button>' +
+            '<button class="confirm-old-btn" data-store="' + store.id + '" data-brand="' + p.brand_id + '" data-price="' + pendingVal + '" data-direction="' + direction + '" data-category="' + wcat.flag + '"' + mcQtyAttr + '>No, same</button>' +
             '</div></div>';
         }
         const confirmRow = ago ? '<div class="confirm-row"><span class="cdot"></span><span class="cdot"></span><span class="cdot"></span>' + (p.confirmed_count>0 ? 'Confirmed by '+p.confirmed_count+' · ' : '') + ago + '</div>' : '';
@@ -1028,7 +1030,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const direction = btn.dataset.direction || 'up';
     const confirmNew = btn.classList.contains('confirm-new-btn');
     const category = btn.dataset.category || null;
-    confirmPriceChange(storeId, brandId, confirmNew, price, direction, category, btn);
+    const mcQty = btn.dataset.mcQty ? parseInt(btn.dataset.mcQty) : null;
+    const mcTier = btn.dataset.mcTier || null;
+    confirmPriceChange(storeId, brandId, confirmNew, price, direction, category, btn, mcQty, mcTier);
   });
 });
 
@@ -1692,7 +1696,7 @@ function shareApp() {
   }
 }
 
-async function confirmPriceChange(storeId, brandId, confirmNew, pendingPrice, direction, category, btnEl) {
+async function confirmPriceChange(storeId, brandId, confirmNew, pendingPrice, direction, category, btnEl, mcQty, mcTier) {
   // Show immediate feedback on the button
   if (btnEl) { btnEl.textContent = '⏳'; btnEl.disabled = true; btnEl.style.opacity = '0.6'; }
   try {
@@ -1711,29 +1715,42 @@ async function confirmPriceChange(storeId, brandId, confirmNew, pendingPrice, di
       shelf_change_flagged:            { priceField: 'shelf_price',           pendingField: 'pending_shelf_price',          dirField: 'shelf_change_direction' },
       sale_change_flagged:             { priceField: 'sale_price',            pendingField: 'pending_sale_price',           dirField: 'sale_change_direction' },
       rewards_change_flagged:          { priceField: 'rewards_price',         pendingField: 'pending_rewards_price',        dirField: 'rewards_change_direction' },
-      multican_change_flagged:         { priceField: 'multican_total',        pendingField: 'pending_multican_price',       dirField: 'multican_change_direction' },
-      sale_multican_change_flagged:    { priceField: 'sale_multican_total',   pendingField: 'pending_sale_multican_price',  dirField: 'sale_multican_change_direction' },
-      rewards_multican_change_flagged: { priceField: 'rewards_multican_total',pendingField: 'pending_rewards_multican_price',dirField: 'rewards_multican_change_direction' },
+      multican_change_flagged:         { priceField: null, pendingField: 'pending_multican_price',        dirField: 'multican_change_direction' },
+      sale_multican_change_flagged:    { priceField: null, pendingField: 'pending_sale_multican_price',   dirField: 'sale_multican_change_direction' },
+      rewards_multican_change_flagged: { priceField: null, pendingField: 'pending_rewards_multican_price',dirField: 'rewards_multican_change_direction' },
     };
     const catInfo = category ? CAT_MAP[category] : null;
     if (confirmNew && catInfo) {
-      // Confirmed new price - run all PATCHes in parallel
+      const isMcCat = mcQty && mcTier;
+      if (isMcCat) {
+        // Update prices_multican for all chain stores with this tier+qty
+        await Promise.all(chainStores.map(cs =>
+          sb('prices_multican?store_id=eq.' + cs.id + '&brand_id=eq.' + brandId + '&tier=eq.' + mcTier + '&qty=eq.' + mcQty, {
+            method: 'PATCH', prefer: 'return=minimal',
+            body: JSON.stringify({ total: pendingPrice, updated_at: new Date().toISOString() })
+          })
+        ));
+      }
+      // Clear flags from prices table for all chain stores
+      const flagClearFields = { [catInfo.pendingField]: null, [category]: false, [catInfo.dirField]: null, price_change_reported_at: null };
+      if (!isMcCat && catInfo.priceField) flagClearFields[catInfo.priceField] = pendingPrice;
+      if (!isMcCat) flagClearFields.updated_at = new Date().toISOString();
       await Promise.all(chainStores.map(cs =>
         sb('prices?store_id=eq.' + cs.id + '&brand_id=eq.' + brandId, {
           method: 'PATCH', prefer: 'return=minimal',
-          body: JSON.stringify({ [catInfo.priceField]: pendingPrice, [catInfo.pendingField]: null, [category]: false, [catInfo.dirField]: null, price_change_reported_at: null, updated_at: new Date().toISOString() })
+          body: JSON.stringify(flagClearFields)
         })
       ));
-      showToast('\u2713 Thanks! Price confirmed ' + dirWord + ' for all ' + store.chain + ' in ' + storeState);
+      showToast('✓ Thanks! Price confirmed ' + dirWord + ' for all ' + store.chain + ' in ' + storeState);
     } else if (!confirmNew && catInfo) {
-      // Confirmed same price - run all PATCHes in parallel
+      // Confirmed same price - just clear flags
       await Promise.all(chainStores.map(cs =>
         sb('prices?store_id=eq.' + cs.id + '&brand_id=eq.' + brandId, {
           method: 'PATCH', prefer: 'return=minimal',
           body: JSON.stringify({ [catInfo.pendingField]: null, [category]: false, [catInfo.dirField]: null, price_change_reported_at: null })
         })
       ));
-      showToast('\u2713 Thanks! Price confirmed unchanged for all ' + store.chain + ' in ' + storeState);
+      showToast('✓ Thanks! Price confirmed unchanged for all ' + store.chain + ' in ' + storeState);
     }
     discoveryRun = false;
     loadNearbyStores();
